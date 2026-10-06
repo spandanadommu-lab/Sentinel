@@ -5,8 +5,8 @@
  * SENTINEL disaster intelligence and emergency response API
  * OpenAPI spec version: 0.1.0
  */
+import type { AlertUpdateStatus } from './alertUpdateStatus';
 
-export interface HealthStatus {
-  status: string;
-  service: string;
+export interface AlertUpdate {
+  status: AlertUpdateStatus;
 }

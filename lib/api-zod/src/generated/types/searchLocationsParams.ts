@@ -6,7 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
-  service: string;
-}
+export type SearchLocationsParams = {
+/**
+ * @minLength 2
+ */
+q: string;
+};

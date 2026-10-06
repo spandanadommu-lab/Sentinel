@@ -3,20 +3,28 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: SENTINEL disaster intelligence and emergency response API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: dashboard
+  - name: incidents
+  - name: zones
+  - name: shelters
+  - name: resources
+  - name: rescue
+  - name: alerts
+  - name: environment
+  - name: copilot
+  - name: operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +32,780 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /health:
+    get:
+      operationId: getApiHealth
+      tags: [health]
+      summary: API health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get current command-center summary
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+  /incidents:
+    get:
+      operationId: listIncidents
+      tags: [incidents]
+      summary: List and filter incidents
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: type
+          schema: { type: string }
+        - in: query
+          name: severity
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: priority
+          schema: { type: string }
+      responses:
+        "200":
+          description: Incidents
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Incident" }
+    post:
+      operationId: createIncident
+      tags: [incidents]
+      summary: Create an incident
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IncidentInput" }
+      responses:
+        "201":
+          description: Created incident
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Incident" }
+  /incidents/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getIncident
+      tags: [incidents]
+      summary: Get incident details
+      responses:
+        "200":
+          description: Incident details
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IncidentDetail" }
+    patch:
+      operationId: updateIncident
+      tags: [incidents]
+      summary: Update an incident
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IncidentUpdate" }
+      responses:
+        "200":
+          description: Updated incident
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Incident" }
+  /zones:
+    get:
+      operationId: listZones
+      tags: [zones]
+      summary: List affected zones
+      responses:
+        "200":
+          description: Affected zones
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AffectedZone" }
+  /shelters:
+    get:
+      operationId: listShelters
+      tags: [shelters]
+      summary: List shelters
+      responses:
+        "200":
+          description: Shelters
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Shelter" }
+  /shelters/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      operationId: updateShelter
+      tags: [shelters]
+      summary: Update shelter occupancy, resources, or status
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ShelterUpdate" }
+      responses:
+        "200":
+          description: Updated shelter
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Shelter" }
+  /resources:
+    get:
+      operationId: listResources
+      tags: [resources]
+      summary: List operational resources
+      responses:
+        "200":
+          description: Resources
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Resource" }
+  /resources/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      operationId: updateResource
+      tags: [resources]
+      summary: Update resource stock and consumption
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ResourceUpdate" }
+      responses:
+        "200":
+          description: Updated resource
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Resource" }
+  /rescue-teams:
+    get:
+      operationId: listRescueTeams
+      tags: [rescue]
+      summary: List rescue teams
+      responses:
+        "200":
+          description: Rescue teams
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/RescueTeam" }
+  /rescue-operations:
+    get:
+      operationId: listRescueOperations
+      tags: [rescue]
+      summary: List rescue operations
+      responses:
+        "200":
+          description: Rescue operations
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/RescueOperation" }
+    post:
+      operationId: createRescueOperation
+      tags: [rescue]
+      summary: Assign a rescue team to an incident
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RescueOperationInput" }
+      responses:
+        "201":
+          description: Created rescue operation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RescueOperation" }
+  /rescue-operations/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      operationId: updateRescueOperation
+      tags: [rescue]
+      summary: Update or complete a rescue operation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RescueOperationUpdate" }
+      responses:
+        "200":
+          description: Updated operation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RescueOperation" }
+  /alerts:
+    get:
+      operationId: listAlerts
+      tags: [alerts]
+      summary: List operational alerts
+      responses:
+        "200":
+          description: Alerts
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Alert" }
+  /alerts/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      operationId: updateAlert
+      tags: [alerts]
+      summary: Acknowledge or resolve an alert
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AlertUpdate" }
+      responses:
+        "200":
+          description: Updated alert
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Alert" }
+  /weather:
+    get:
+      operationId: getWeather
+      tags: [environment]
+      summary: Get latest weather observation and forecast
+      parameters:
+        - in: query
+          name: location
+          schema: { type: string }
+      responses:
+        "200":
+          description: Weather data
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WeatherReading" }
+  /flood:
+    get:
+      operationId: getFlood
+      tags: [environment]
+      summary: Get latest flood conditions
+      parameters:
+        - in: query
+          name: location
+          schema: { type: string }
+      responses:
+        "200":
+          description: Flood data
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FloodReading" }
+  /risk/{zoneId}:
+    parameters:
+      - in: path
+        name: zoneId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getZoneRisk
+      tags: [zones]
+      summary: Calculate deterministic zone risk and contributing factors
+      responses:
+        "200":
+          description: Risk assessment
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RiskAssessment" }
+  /ai/copilot:
+    post:
+      operationId: askCopilot
+      tags: [copilot]
+      summary: Ask the decision-support copilot about current structured data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CopilotInput" }
+      responses:
+        "200":
+          description: Decision-support response
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CopilotResponse" }
+  /data-sources:
+    get:
+      operationId: listDataSources
+      tags: [operations]
+      summary: List data-source health and freshness
+      responses:
+        "200":
+          description: Data sources
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/DataSource" }
+  /system-events:
+    get:
+      operationId: listSystemEvents
+      tags: [operations]
+      summary: List recent operational activity
+      responses:
+        "200":
+          description: System events
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SystemEvent" }
+  /search:
+    get:
+      operationId: searchGlobal
+      tags: [operations]
+      summary: Search locations and operational records
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        "200":
+          description: Matching entities
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/SearchResult" }
+  /geocode:
+    get:
+      operationId: searchLocations
+      tags: [operations]
+      summary: Search map locations through a public geocoding service
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: { type: string, minLength: 2 }
+      responses:
+        "200":
+          description: Geocoded locations
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/LocationResult" }
+  /map/analyze:
+    get:
+      operationId: analyzeArea
+      tags: [operations]
+      summary: Analyze incidents, shelters, teams, and risk near map coordinates
+      parameters:
+        - in: query
+          name: lat
+          required: true
+          schema: { type: number }
+        - in: query
+          name: lng
+          required: true
+          schema: { type: number }
+        - in: query
+          name: radiusKm
+          schema: { type: number, default: 25 }
+      responses:
+        "200":
+          description: Area analysis
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AreaAnalysis" }
 components:
   schemas:
     HealthStatus:
       type: object
       properties:
-        status:
-          type: string
-      required:
-        - status
-
+        status: { type: string }
+        service: { type: string }
+      required: [status, service]
+    Incident:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        type: { type: string, enum: [FLOOD, CYCLONE, EARTHQUAKE, LANDSLIDE, FIRE, STORM, HEATWAVE, DROUGHT, INDUSTRIAL, OTHER] }
+        severity: { type: string, enum: [LOW, MODERATE, HIGH, CRITICAL] }
+        status: { type: string, enum: [ACTIVE, MONITORING, CONTAINED, RESOLVED] }
+        priority: { type: string, enum: [P1, P2, P3] }
+        description: { type: string }
+        location: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+        riskScore: { type: integer }
+        estimatedPopulation: { type: integer }
+        assignedTeamId: { type: ["string", "null"] }
+        source: { type: string }
+        classification: { type: string, enum: [OBSERVED, FORECAST, CALCULATED, ESTIMATED, SIMULATED] }
+        riskFactors:
+          type: array
+          items: { type: string }
+        updatedAt: { type: string, format: date-time }
+      required: [id, title, type, severity, status, priority, description, location, lat, lng, riskScore, estimatedPopulation, source, classification, riskFactors, updatedAt]
+    IncidentInput:
+      type: object
+      properties:
+        title: { type: string, minLength: 1 }
+        type: { type: string, enum: [FLOOD, CYCLONE, EARTHQUAKE, LANDSLIDE, FIRE, STORM, HEATWAVE, DROUGHT, INDUSTRIAL, OTHER] }
+        severity: { type: string, enum: [LOW, MODERATE, HIGH, CRITICAL] }
+        status: { type: string, enum: [ACTIVE, MONITORING, CONTAINED, RESOLVED] }
+        description: { type: string }
+        location: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+        estimatedPopulation: { type: integer, minimum: 0 }
+        assignedTeamId: { type: ["string", "null"] }
+      required: [title, type, severity, status, description, location, lat, lng, estimatedPopulation]
+    IncidentUpdate:
+      type: object
+      properties:
+        title: { type: string, minLength: 1 }
+        severity: { type: string, enum: [LOW, MODERATE, HIGH, CRITICAL] }
+        status: { type: string, enum: [ACTIVE, MONITORING, CONTAINED, RESOLVED] }
+        description: { type: string }
+        assignedTeamId: { type: ["string", "null"] }
+    IncidentDetail:
+      allOf:
+        - $ref: "#/components/schemas/Incident"
+        - type: object
+          properties:
+            zones:
+              type: array
+              items: { $ref: "#/components/schemas/AffectedZone" }
+            alerts:
+              type: array
+              items: { $ref: "#/components/schemas/Alert" }
+            recommendations:
+              type: array
+              items: { type: string }
+    AffectedZone:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        incidentId: { type: ["string", "null"] }
+        name: { type: string }
+        location: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+        riskScore: { type: integer, minimum: 0, maximum: 100 }
+        riskLevel: { type: string, enum: [LOW, MODERATE, HIGH, CRITICAL] }
+        estimatedPopulation: { type: integer, minimum: 0 }
+        riskFactors:
+          type: array
+          items: { type: string }
+        classification: { type: string, enum: [OBSERVED, FORECAST, CALCULATED, ESTIMATED, SIMULATED] }
+      required: [id, name, location, lat, lng, riskScore, riskLevel, estimatedPopulation, riskFactors, classification]
+    Shelter:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        location: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+        capacity: { type: integer }
+        occupancy: { type: integer }
+        occupancyPercent: { type: integer }
+        status: { type: string, enum: [AVAILABLE, NEAR_CAPACITY, FULL, CLOSED] }
+        contact: { type: string }
+        resources:
+          type: array
+          items: { $ref: "#/components/schemas/ShelterResource" }
+        updatedAt: { type: string, format: date-time }
+        classification: { type: string, enum: [OBSERVED, SIMULATED] }
+      required: [id, name, location, lat, lng, capacity, occupancy, occupancyPercent, status, contact, resources, updatedAt, classification]
+    ShelterResource:
+      type: object
+      properties:
+        name: { type: string }
+        quantity: { type: number }
+        unit: { type: string }
+      required: [name, quantity, unit]
+    ShelterUpdate:
+      type: object
+      properties:
+        occupancy: { type: integer, minimum: 0 }
+        status: { type: string, enum: [AVAILABLE, NEAR_CAPACITY, FULL, CLOSED] }
+        resources:
+          type: array
+          items: { $ref: "#/components/schemas/ShelterResource" }
+    Resource:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        unit: { type: string }
+        quantity: { type: number }
+        consumptionPerHour: { type: ["number", "null"] }
+        hoursRemaining: { type: ["number", "null"] }
+        minimumThreshold: { type: number }
+        status: { type: string, enum: [GOOD, LOW, CRITICAL, OUT] }
+        updatedAt: { type: string, format: date-time }
+      required: [id, name, unit, quantity, minimumThreshold, status, updatedAt]
+    ResourceUpdate:
+      type: object
+      properties:
+        quantity: { type: number, minimum: 0 }
+        consumptionPerHour: { type: ["number", "null"], minimum: 0 }
+        minimumThreshold: { type: number, minimum: 0 }
+    RescueTeam:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        type: { type: string }
+        status: { type: string, enum: [AVAILABLE, EN_ROUTE, DEPLOYED, ON_SCENE, OFFLINE] }
+        location: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+        incidentId: { type: ["string", "null"] }
+        incidentTitle: { type: ["string", "null"] }
+        priority: { type: string, enum: [P1, P2, P3] }
+        vehicle: { type: string }
+        notes: { type: string }
+        classification: { type: string, enum: [OBSERVED, SIMULATED] }
+        updatedAt: { type: string, format: date-time }
+      required: [id, name, type, status, location, lat, lng, priority, vehicle, notes, classification, updatedAt]
+    RescueOperation:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        teamId: { type: string, format: uuid }
+        teamName: { type: string }
+        incidentId: { type: string, format: uuid }
+        incidentTitle: { type: string }
+        status: { type: string, enum: [EN_ROUTE, DEPLOYED, ON_SCENE, COMPLETED] }
+        priority: { type: string, enum: [P1, P2, P3] }
+        notes: { type: string }
+        startedAt: { type: string, format: date-time }
+        completedAt: { type: ["string", "null"], format: date-time }
+      required: [id, teamId, teamName, incidentId, incidentTitle, status, priority, notes, startedAt]
+    RescueOperationInput:
+      type: object
+      properties:
+        teamId: { type: string, format: uuid }
+        incidentId: { type: string, format: uuid }
+        priority: { type: string, enum: [P1, P2, P3] }
+        notes: { type: string }
+      required: [teamId, incidentId, priority]
+    RescueOperationUpdate:
+      type: object
+      properties:
+        status: { type: string, enum: [EN_ROUTE, DEPLOYED, ON_SCENE, COMPLETED] }
+        notes: { type: string }
+    Alert:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        severity: { type: string, enum: [CRITICAL, WARNING, INFORMATION] }
+        title: { type: string }
+        message: { type: string }
+        source: { type: string }
+        createdAt: { type: string, format: date-time }
+        incidentId: { type: ["string", "null"] }
+        zoneId: { type: ["string", "null"] }
+        status: { type: string, enum: [ACTIVE, ACKNOWLEDGED, RESOLVED, EXPIRED] }
+        classification: { type: string, enum: [OBSERVED, FORECAST, CALCULATED, SIMULATED] }
+      required: [id, severity, title, message, source, createdAt, status, classification]
+    AlertUpdate:
+      type: object
+      properties:
+        status: { type: string, enum: [ACKNOWLEDGED, RESOLVED] }
+      required: [status]
+    WeatherReading:
+      type: object
+      properties:
+        location: { type: string }
+        temperatureC: { type: number }
+        precipitationMm: { type: number }
+        windKph: { type: number }
+        humidityPercent: { type: integer }
+        pressureHpa: { type: number }
+        forecastHighC: { type: number }
+        forecastLowC: { type: number }
+        forecastPrecipitationMm: { type: number }
+        source: { type: string }
+        sourceStatus: { type: string, enum: [LIVE, STALE, ERROR, SIMULATED] }
+        updatedAt: { type: string, format: date-time }
+        classification: { type: string, enum: [OBSERVED, FORECAST, SIMULATED] }
+        message: { type: ["string", "null"] }
+      required: [location, temperatureC, precipitationMm, windKph, humidityPercent, pressureHpa, forecastHighC, forecastLowC, forecastPrecipitationMm, source, sourceStatus, updatedAt, classification]
+    FloodReading:
+      type: object
+      properties:
+        location: { type: string }
+        riverLevelM: { type: number }
+        trend: { type: string, enum: [RISING, STEADY, FALLING] }
+        rainfall24hMm: { type: number }
+        riskLevel: { type: string, enum: [LOW, MODERATE, HIGH, CRITICAL] }
+        source: { type: string }
+        sourceStatus: { type: string, enum: [LIVE, STALE, ERROR, SIMULATED] }
+        updatedAt: { type: string, format: date-time }
+        classification: { type: string, enum: [OBSERVED, FORECAST, SIMULATED] }
+        message: { type: ["string", "null"] }
+      required: [location, riverLevelM, trend, rainfall24hMm, riskLevel, source, sourceStatus, updatedAt, classification]
+    RiskAssessment:
+      type: object
+      properties:
+        zoneId: { type: string, format: uuid }
+        score: { type: integer, minimum: 0, maximum: 100 }
+        level: { type: string, enum: [LOW, MODERATE, HIGH, CRITICAL] }
+        factors:
+          type: array
+          items: { type: string }
+        calculatedAt: { type: string, format: date-time }
+        classification: { type: string, enum: [CALCULATED, SIMULATED] }
+      required: [zoneId, score, level, factors, calculatedAt, classification]
+    CopilotInput:
+      type: object
+      properties:
+        question: { type: string, minLength: 1, maxLength: 1000 }
+        incidentId: { type: string, format: uuid }
+        zoneId: { type: string, format: uuid }
+      required: [question]
+    CopilotResponse:
+      type: object
+      properties:
+        answer: { type: string }
+        recommendations:
+          type: array
+          items: { type: string }
+        source: { type: string, enum: [openai, rules] }
+        generatedAt: { type: string, format: date-time }
+        disclaimer: { type: string }
+      required: [answer, recommendations, source, generatedAt, disclaimer]
+    DataSource:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        type: { type: string }
+        status: { type: string, enum: [LIVE, STALE, ERROR, SIMULATED, DISABLED] }
+        lastSuccessAt: { type: ["string", "null"], format: date-time }
+        lastError: { type: ["string", "null"] }
+        message: { type: string }
+      required: [id, name, type, status, message]
+    SystemEvent:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        message: { type: string }
+        category: { type: string }
+        createdAt: { type: string, format: date-time }
+        classification: { type: string, enum: [OBSERVED, CALCULATED, SIMULATED] }
+      required: [id, title, message, category, createdAt, classification]
+    SearchResult:
+      type: object
+      properties:
+        id: { type: string }
+        type: { type: string, enum: [incident, shelter, rescue_team, zone] }
+        title: { type: string }
+        subtitle: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+        path: { type: string }
+      required: [id, type, title, subtitle, lat, lng, path]
+    LocationResult:
+      type: object
+      properties:
+        name: { type: string }
+        displayName: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+      required: [name, displayName, lat, lng]
+    AreaAnalysis:
+      type: object
+      properties:
+        center:
+          type: object
+          properties:
+            lat: { type: number }
+            lng: { type: number }
+            label: { type: string }
+          required: [lat, lng, label]
+        riskLevel: { type: string, enum: [LOW, MODERATE, HIGH, CRITICAL] }
+        riskScore: { type: integer }
+        estimatedPopulation: { type: integer }
+        incidents:
+          type: array
+          items: { $ref: "#/components/schemas/Incident" }
+        shelters:
+          type: array
+          items: { $ref: "#/components/schemas/Shelter" }
+        rescueTeams:
+          type: array
+          items: { $ref: "#/components/schemas/RescueTeam" }
+        alerts:
+          type: array
+          items: { $ref: "#/components/schemas/Alert" }
+        resourceShortages:
+          type: array
+          items: { type: string }
+        shelterCapacityAvailable: { type: integer }
+        classification: { type: string, enum: [CALCULATED, SIMULATED] }
+      required: [center, riskLevel, riskScore, estimatedPopulation, incidents, shelters, rescueTeams, alerts, resourceShortages, shelterCapacityAvailable, classification]
+    DashboardSummary:
+      type: object
+      properties:
+        activeIncidents: { type: integer }
+        criticalIncidents: { type: integer }
+        estimatedPopulationAtRisk: { type: integer }
+        activeRescueTeams: { type: integer }
+        occupiedShelters: { type: integer }
+        criticalResourceShortages: { type: integer }
+        priorityAlerts:
+          type: array
+          items: { $ref: "#/components/schemas/Alert" }
+        latestWeather: { $ref: "#/components/schemas/WeatherReading" }
+        latestFlood: { $ref: "#/components/schemas/FloodReading" }
+        topPriorityIncidents:
+          type: array
+          items: { $ref: "#/components/schemas/Incident" }
+        updatedAt: { type: string, format: date-time }
+        classification: { type: string, enum: [SIMULATED, OBSERVED] }
+      required: [activeIncidents, criticalIncidents, estimatedPopulationAtRisk, activeRescueTeams, occupiedShelters, criticalResourceShortages, priorityAlerts, latestWeather, latestFlood, topPriorityIncidents, updatedAt, classification]

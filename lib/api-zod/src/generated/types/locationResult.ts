@@ -6,7 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
-  service: string;
+export interface LocationResult {
+  name: string;
+  displayName: string;
+  lat: number;
+  lng: number;
 }

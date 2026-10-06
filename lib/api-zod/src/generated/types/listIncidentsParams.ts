@@ -6,7 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
-  service: string;
-}
+export type ListIncidentsParams = {
+search?: string;
+type?: string;
+severity?: string;
+status?: string;
+priority?: string;
+};

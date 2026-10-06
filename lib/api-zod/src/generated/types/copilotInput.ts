@@ -6,7 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
-  service: string;
+export interface CopilotInput {
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  question: string;
+  incidentId?: string;
+  zoneId?: string;
 }
