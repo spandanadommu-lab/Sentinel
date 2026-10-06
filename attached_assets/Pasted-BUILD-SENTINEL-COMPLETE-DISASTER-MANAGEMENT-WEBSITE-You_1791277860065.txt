@@ -1,0 +1,1425 @@
+BUILD SENTINEL — COMPLETE DISASTER MANAGEMENT WEBSITE
+
+You are building a complete, production-quality full-stack WEB WEBSITE called:
+
+SENTINEL
+Disaster Intelligence & Emergency Response
+
+Tagline:
+"See the situation. Understand the risk. Coordinate the response."
+
+This is a hackathon project based on a Disaster Management Dashboard problem statement.
+
+The website must be fully functional, connected to Supabase, capable of using real external data sources, and deployable on Replit.
+
+IMPORTANT:
+Build the complete website in one pass.
+
+Do NOT build a static mockup.
+Do NOT create placeholder buttons.
+Do NOT create fake functionality.
+Do NOT leave major pages unfinished.
+Do NOT make it look like a generic AI-generated SaaS website.
+
+The final result must be a working web platform.
+
+==================================================
+1. CORE OBJECTIVE
+==================================================
+
+SENTINEL is a disaster-management web dashboard for authorities.
+
+It must allow authorities to monitor:
+
+- disaster incidents
+- affected areas
+- estimated population at risk
+- shelters
+- shelter capacity
+- shelter resources
+- rescue teams
+- rescue operations
+- emergency alerts
+- environmental conditions
+- operational priorities
+
+The website must help an authority quickly answer:
+
+1. What is happening?
+2. Where is it happening?
+3. Who may be affected?
+4. What resources are available?
+5. What requires attention right now?
+
+==================================================
+2. DESIGN PHILOSOPHY
+==================================================
+
+This is emergency-management software.
+
+The interface must prioritize:
+
+CLARITY
+SPEED
+READABILITY
+ACCESSIBILITY
+ACTION
+
+The user should be able to understand the situation within seconds.
+
+Do NOT make the website visually complicated.
+
+Do NOT use:
+
+- gradients
+- glassmorphism
+- glowing cards
+- neon effects
+- futuristic AI fonts
+- excessive rounded cards
+- excessive shadows
+- decorative blobs
+- animated backgrounds
+- excessive animations
+- giant hero sections
+- unnecessary AI sparkles
+- excessive emojis
+
+Do NOT make it look like an AI startup landing page.
+
+Do NOT make it look like an old government website either.
+
+The design should feel like modern professional emergency-management software.
+
+==================================================
+3. VISUAL DESIGN
+==================================================
+
+Use:
+
+- clean light neutral background
+- dark text
+- strong contrast
+- subtle borders
+- moderate border radius
+- restrained shadows
+- professional sans-serif typography
+- compact information cards
+- clear hierarchy
+- generous spacing
+- highly readable tables
+- large operational map
+
+Semantic colors:
+
+CRITICAL = red
+WARNING = amber/orange
+SAFE = green
+INFORMATION = blue
+NEUTRAL = gray
+
+Never use gradients.
+
+Do not use color alone to communicate severity.
+Use labels, icons and text as well.
+
+==================================================
+4. TECHNOLOGY
+==================================================
+
+Frontend:
+
+React
+TypeScript
+Vite
+Tailwind CSS
+
+Backend:
+
+Node.js
+Express
+TypeScript
+
+Database:
+
+Supabase PostgreSQL
+
+Supabase features:
+
+- Database
+- Authentication
+- Realtime
+- Storage where required
+
+Mapping:
+
+Leaflet
+React Leaflet
+OpenStreetMap-compatible tiles
+
+Icons:
+
+Lucide React
+
+Charts:
+
+Recharts
+
+Validation:
+
+Zod
+
+AI:
+
+OpenAI API through a secure server-side backend route.
+
+Never expose OPENAI_API_KEY to the browser.
+
+==================================================
+5. ENVIRONMENT VARIABLES
+==================================================
+
+Create .env.example:
+
+VITE_SUPABASE_URL=
+VITE_SUPABASE_PUBLISHABLE_KEY=
+
+SUPABASE_URL=
+SUPABASE_SECRET_KEY=
+
+OPENAI_API_KEY=
+
+IMD_API_KEY=
+
+OPEN_METEO_ENABLED=true
+GDACS_ENABLED=true
+USGS_ENABLED=true
+
+Optional:
+
+NASA_FIRMS_API_KEY=
+BHUVAN_API_KEY=
+
+Never hard-code credentials.
+
+Never commit credentials.
+
+Never display credentials in the frontend.
+
+Use Replit Secrets for actual values.
+
+==================================================
+6. WEBSITE STRUCTURE
+==================================================
+
+Create these main pages:
+
+1. Overview
+2. Live Map
+3. Incidents
+4. Shelters
+5. Resources
+6. Rescue Operations
+7. Alerts
+8. AI Copilot
+9. Data Sources
+10. Settings
+
+Navigation must be simple.
+
+Primary sidebar:
+
+SENTINEL
+
+Overview
+Live Map
+Incidents
+Shelters
+Resources
+Rescue Operations
+Alerts
+AI Copilot
+
+Secondary:
+
+Data Sources
+Settings
+
+==================================================
+7. TOP HEADER
+==================================================
+
+Header contains:
+
+SENTINEL
+
+System status:
+● Operational
+
+Current time
+
+GLOBAL SEARCH
+
+Alert notification indicator
+
+Current authority/user
+
+The header should remain clean and compact.
+
+==================================================
+8. GLOBAL SEARCH
+==================================================
+
+Implement a working global search.
+
+It must search:
+
+- locations
+- incidents
+- shelters
+- rescue teams
+- affected zones
+
+Example searches:
+
+Kadapa
+Tirupati
+Flood Zone 4
+Shelter 12
+Rescue Team 08
+
+Results should show the entity type.
+
+Clicking a result should navigate to the appropriate page/detail panel.
+
+==================================================
+9. LIVE MAP
+==================================================
+
+The map is one of the central features.
+
+Use Leaflet.
+
+Show:
+
+- disaster incidents
+- affected/risk zones
+- shelters
+- rescue teams
+- optional hospitals
+- optional infrastructure
+
+Use a layer control.
+
+Default layers:
+
+Incidents
+Risk Zones
+Shelters
+
+Optional layers:
+
+Rescue Teams
+Hospitals
+Infrastructure
+
+Do not overload the map.
+
+Markers must be visually distinct.
+
+Critical incident = red
+High = orange
+Moderate = yellow
+Low = green
+Shelter = blue
+
+==================================================
+10. MAP LOCATION SEARCH
+==================================================
+
+The Live Map must have a location search.
+
+The user can type:
+
+Kadapa
+Hyderabad
+Tirupati
+Bengaluru
+etc.
+
+Use a geocoding service.
+
+Search result should:
+
+1. move map to location
+2. zoom appropriately
+3. display nearby incidents
+4. display nearby shelters
+5. display nearby rescue teams
+6. display risk information where available
+
+Add an action:
+
+"Analyze this area"
+
+When clicked, show:
+
+- active incidents
+- risk level
+- estimated population at risk
+- nearby shelters
+- available shelter capacity
+- rescue teams
+- resource shortages
+- relevant alerts
+
+==================================================
+11. OVERVIEW PAGE
+==================================================
+
+This is the primary command center.
+
+Top summary:
+
+ACTIVE INCIDENTS
+CRITICAL INCIDENTS
+ESTIMATED POPULATION AT RISK
+ACTIVE RESCUE TEAMS
+
+Main content:
+
+Large LIVE MAP
+
+Priority Alerts
+
+Resource Status
+
+AI Response Recommendation
+
+Recent Activity
+
+The page must immediately communicate the current situation.
+
+==================================================
+12. INCIDENTS
+==================================================
+
+Create a fully functional incident management page.
+
+Features:
+
+Search
+Filter
+Sort
+Create
+Edit
+View
+Change status
+Assign rescue team
+
+Filters:
+
+Type
+Severity
+Status
+Priority
+
+Table:
+
+Priority
+Incident
+Type
+Severity
+Location
+Risk
+Population at Risk
+Status
+Updated
+
+Incident detail:
+
+Title
+Type
+Severity
+Status
+Description
+Location
+Map
+Risk score
+Risk factors
+Estimated population
+Affected zones
+Assigned rescue teams
+Alerts
+Data source
+Timestamp
+Recommended actions
+
+==================================================
+13. INCIDENT TYPES
+==================================================
+
+Support:
+
+FLOOD
+CYCLONE
+EARTHQUAKE
+LANDSLIDE
+FIRE
+STORM
+HEATWAVE
+DROUGHT
+INDUSTRIAL
+OTHER
+
+Severity:
+
+LOW
+MODERATE
+HIGH
+CRITICAL
+
+Status:
+
+ACTIVE
+MONITORING
+CONTAINED
+RESOLVED
+
+==================================================
+14. AFFECTED ZONES
+==================================================
+
+Every major incident can contain affected zones.
+
+Each zone contains:
+
+name
+risk score
+risk level
+estimated population
+location
+geometry if available
+
+Risk:
+
+0–30 = LOW
+31–60 = MODERATE
+61–80 = HIGH
+81–100 = CRITICAL
+
+==================================================
+15. SHELTERS
+==================================================
+
+Shelters page:
+
+Shelter
+Location
+Capacity
+Current Occupancy
+Occupancy %
+Status
+Critical Resources
+Last Updated
+
+Statuses:
+
+AVAILABLE
+NEAR CAPACITY
+FULL
+CLOSED
+
+Shelter details:
+
+Capacity
+Current occupancy
+Available capacity
+Water
+Food
+Medicine
+Fuel
+Medical supplies
+Location
+Contact
+Related incidents
+
+Allow authorized users to update occupancy and resources.
+
+==================================================
+16. RESOURCES
+==================================================
+
+Track:
+
+Water
+Food
+Medicine
+Fuel
+Blankets
+Generators
+Medical supplies
+
+Show:
+
+Current quantity
+Unit
+Consumption rate
+Estimated time remaining
+Minimum threshold
+Status
+
+Status:
+
+GOOD
+LOW
+CRITICAL
+OUT
+
+Calculate remaining time when consumption data exists.
+
+==================================================
+17. RESCUE OPERATIONS
+==================================================
+
+Show:
+
+Rescue teams
+Team type
+Status
+Location
+Assigned incident
+Priority
+Vehicle
+Notes
+
+Statuses:
+
+AVAILABLE
+EN_ROUTE
+DEPLOYED
+ON_SCENE
+OFFLINE
+
+Allow authorized users to:
+
+Assign team
+Change status
+Update notes
+Complete operation
+
+Show rescue teams on the map.
+
+Do not claim a GPS location is live unless it actually comes from a live source.
+
+Demo GPS positions must be labelled SIMULATED.
+
+==================================================
+18. ALERTS
+==================================================
+
+Alerts page:
+
+Critical
+Warning
+Information
+
+Each alert contains:
+
+Severity
+Title
+Message
+Source
+Created time
+Incident/zone
+Status
+
+Statuses:
+
+ACTIVE
+ACKNOWLEDGED
+RESOLVED
+EXPIRED
+
+Allow operators to acknowledge alerts.
+
+Critical alerts must be visually prominent.
+
+==================================================
+19. DATA SOURCES
+==================================================
+
+Create a dedicated Data Sources page.
+
+Show:
+
+IMD
+Open-Meteo
+Open-Meteo Flood
+GDACS
+USGS
+Supabase
+OpenAI
+Optional Bhuvan
+Optional NASA FIRMS
+
+Each source shows:
+
+LIVE
+STALE
+ERROR
+SIMULATED
+
+Also:
+
+Last successful update
+Last error
+Source type
+
+The interface must clearly distinguish live data from demo data.
+
+==================================================
+20. EXTERNAL DATA
+==================================================
+
+Use a modular data-source architecture.
+
+Create:
+
+WeatherAdapter
+FloodAdapter
+DisasterFeedAdapter
+EarthquakeAdapter
+
+Do not make the entire website dependent on one external API.
+
+==================================================
+21. IMD
+==================================================
+
+If IMD credentials are available:
+
+Use IMD for Indian:
+
+- weather
+- warnings
+- district nowcast
+- rainfall
+- cyclone information
+- other relevant available observations
+
+If IMD credentials are unavailable:
+
+The website must continue functioning.
+
+Do NOT bypass IMD authentication.
+
+Do NOT scrape protected endpoints.
+
+==================================================
+22. OPEN-METEO
+==================================================
+
+Use Open-Meteo for weather.
+
+No API key is required for the free API.
+
+Use:
+
+temperature
+precipitation
+wind
+humidity
+pressure
+forecast
+
+Also support Open-Meteo Flood/GloFAS data where appropriate.
+
+Cache results.
+
+Do not call the API unnecessarily on every page render.
+
+==================================================
+23. GDACS
+==================================================
+
+Integrate GDACS public disaster information where available.
+
+Use it as an external disaster-event source.
+
+Normalize events into the SENTINEL incident model.
+
+==================================================
+24. USGS
+==================================================
+
+Use USGS public earthquake feeds.
+
+Normalize earthquake events into the SENTINEL incident model.
+
+==================================================
+25. POPULATION
+==================================================
+
+Population-at-risk is an ESTIMATE.
+
+Do not ask AI to invent population numbers.
+
+Use geographic/population data where available.
+
+For demo mode, use clearly labelled estimated population data.
+
+Display:
+
+"Estimated population at risk"
+
+==================================================
+26. RISK ENGINE
+==================================================
+
+Create a deterministic server-side risk engine.
+
+Inputs may include:
+
+rainfall
+river conditions
+forecast
+wind
+incident severity
+population exposure
+shelter availability
+resource availability
+infrastructure conditions
+
+Output:
+
+risk score 0–100
+risk level
+contributing factors
+calculation timestamp
+
+Example:
+
+Risk Score: 87
+CRITICAL
+
+Factors:
+
+High rainfall
+Rising river conditions
+High population exposure
+Limited shelter capacity
+
+==================================================
+27. PRIORITY ENGINE
+==================================================
+
+Create emergency priority scoring.
+
+Consider:
+
+risk score
+population exposure
+severity
+shelter capacity
+resource shortages
+rescue response
+
+Priority:
+
+P1 — Immediate
+P2 — High
+P3 — Monitor
+
+Always show why something received its priority.
+
+==================================================
+28. AI COPILOT
+==================================================
+
+Create a dedicated AI Copilot page.
+
+Users can ask:
+
+"What requires attention right now?"
+
+"Which incident is highest priority?"
+
+"Which shelters are nearing capacity?"
+
+"What resources are running low?"
+
+"Summarize the current emergency situation."
+
+"Why is Zone 4 high risk?"
+
+"Which rescue team is available?"
+
+The backend must first collect structured current data.
+
+Only then send relevant structured data to OpenAI.
+
+The AI must not invent facts.
+
+If information isn't available, say so.
+
+AI is decision support.
+
+AI does NOT autonomously control emergency operations.
+
+Every recommendation should say:
+
+"Recommended action"
+
+not:
+
+"Automatic decision"
+
+Add:
+
+"AI-generated recommendations are decision support. Emergency authorities remain responsible for final decisions."
+
+==================================================
+29. AI WITHOUT API KEY
+==================================================
+
+If OPENAI_API_KEY is missing:
+
+Do not break the website.
+
+Use the deterministic risk/priority engine to generate useful rule-based summaries.
+
+The user should still be able to use the website.
+
+==================================================
+30. SUPABASE DATABASE
+==================================================
+
+Create migrations for:
+
+profiles
+incidents
+affected_zones
+shelters
+shelter_resources
+rescue_teams
+rescue_operations
+weather_observations
+flood_observations
+alerts
+system_events
+data_sources
+
+Use UUIDs.
+
+Use proper foreign keys.
+
+Create indexes.
+
+Enable RLS.
+
+==================================================
+31. SUPABASE REALTIME
+==================================================
+
+Use Supabase Realtime for:
+
+incidents
+affected_zones
+shelters
+shelter_resources
+rescue_teams
+rescue_operations
+alerts
+system_events
+data_sources
+
+When an operational record changes:
+
+the website should update without a full browser refresh.
+
+==================================================
+32. AUTHENTICATION
+==================================================
+
+Use Supabase Auth.
+
+Roles:
+
+ADMIN
+OPERATOR
+VIEWER
+
+ADMIN:
+full access
+
+OPERATOR:
+operational management
+
+VIEWER:
+read-only
+
+Use RLS to enforce access.
+
+Never trust a role supplied only by the frontend.
+
+==================================================
+33. DEMO MODE
+==================================================
+
+The website must work immediately after deployment.
+
+Seed coherent demo data.
+
+Create:
+
+8+ incidents
+10+ affected zones
+12+ shelters
+8+ rescue teams
+resources
+alerts
+weather observations
+flood observations
+system events
+
+Create a coherent flood scenario.
+
+Example:
+
+Zone 4:
+CRITICAL
+high rainfall
+rising river conditions
+high population exposure
+shelter pressure
+rescue route partially blocked
+
+Clearly show:
+
+DEMO / SIMULATED DATA
+
+when applicable.
+
+==================================================
+34. DATA CLASSIFICATION
+==================================================
+
+Every important piece of information should conceptually belong to:
+
+OBSERVED
+FORECAST
+CALCULATED
+ESTIMATED
+SIMULATED
+
+Examples:
+
+Weather observation = OBSERVED
+
+Weather forecast = FORECAST
+
+Risk score = CALCULATED
+
+Population at risk = ESTIMATED
+
+Seeded rescue location = SIMULATED
+
+Do not present simulated data as live data.
+
+==================================================
+35. SYSTEM ACTIVITY
+==================================================
+
+Create an operational activity timeline.
+
+Examples:
+
+Weather data updated
+Flood risk increased
+Priority changed
+Alert created
+Rescue team assigned
+Shelter occupancy updated
+Resource threshold crossed
+
+Use system_events.
+
+==================================================
+36. ERROR HANDLING
+==================================================
+
+External API failure must never crash the website.
+
+Show:
+
+Weather data unavailable.
+Showing latest successful update from [timestamp].
+
+AI unavailable.
+Operational dashboard remains functional.
+
+Supabase unavailable.
+Show a clear retry state.
+
+Never show a blank page.
+
+==================================================
+37. LOADING STATES
+==================================================
+
+Use simple loading indicators.
+
+No huge skeleton animations.
+
+Examples:
+
+Loading incidents...
+
+Updating environmental data...
+
+==================================================
+38. MAP SEARCH
+==================================================
+
+Location search must be fully functional.
+
+Search location.
+
+Select result.
+
+Move map.
+
+Zoom.
+
+Show nearby incidents.
+
+Show nearby shelters.
+
+Show nearby rescue teams.
+
+Allow:
+
+ANALYZE THIS AREA
+
+Return:
+
+Current risk
+Incidents
+Population estimate
+Shelters
+Shelter capacity
+Rescue teams
+Alerts
+Resource shortages
+
+==================================================
+39. SECURITY
+==================================================
+
+Never expose:
+
+SUPABASE_SECRET_KEY
+OPENAI_API_KEY
+IMD private credentials
+
+Frontend can use:
+
+VITE_SUPABASE_URL
+VITE_SUPABASE_PUBLISHABLE_KEY
+
+Server can use:
+
+SUPABASE_URL
+SUPABASE_SECRET_KEY
+OPENAI_API_KEY
+IMD_API_KEY
+
+==================================================
+40. API ROUTES
+==================================================
+
+Create:
+
+GET /api/health
+
+GET /api/dashboard/summary
+
+GET /api/incidents
+GET /api/incidents/:id
+POST /api/incidents
+PATCH /api/incidents/:id
+
+GET /api/zones
+
+GET /api/shelters
+PATCH /api/shelters/:id
+
+GET /api/resources
+PATCH /api/resources/:id
+
+GET /api/rescue-teams
+GET /api/rescue-operations
+POST /api/rescue-operations
+PATCH /api/rescue-operations/:id
+
+GET /api/alerts
+PATCH /api/alerts/:id
+
+GET /api/weather
+GET /api/flood
+
+GET /api/risk/:zoneId
+
+POST /api/ai/copilot
+
+GET /api/data-sources
+
+GET /api/system-events
+
+==================================================
+41. DASHBOARD SUMMARY
+==================================================
+
+Create:
+
+GET /api/dashboard/summary
+
+Return:
+
+active incidents
+critical incidents
+estimated population at risk
+active rescue teams
+occupied shelters
+critical resource shortages
+priority alerts
+latest environmental observations
+data-source statuses
+top priority incidents
+
+==================================================
+42. RESPONSIVE DESIGN
+==================================================
+
+Desktop first.
+
+Tablet supported.
+
+Mobile supported.
+
+On mobile:
+
+collapse navigation
+convert tables to cards
+keep critical alerts visible
+keep map usable
+
+==================================================
+43. ACCESSIBILITY
+==================================================
+
+Use:
+
+keyboard navigation
+visible focus
+ARIA labels
+good contrast
+clear status labels
+readable typography
+
+==================================================
+44. PERFORMANCE
+==================================================
+
+Do not reload entire dashboard every few seconds.
+
+Use:
+
+Supabase Realtime
+caching
+efficient API calls
+debounced search
+lazy loading where appropriate
+
+Avoid unnecessary API calls.
+
+==================================================
+45. DEPLOYMENT
+==================================================
+
+The website must run on Replit.
+
+Create proper scripts:
+
+npm run dev
+npm run build
+npm run start
+
+Build frontend for production.
+
+Serve production frontend from the backend where appropriate.
+
+Create:
+
+GET /api/health
+
+Return:
+
+{
+  "status": "ok",
+  "service": "sentinel"
+}
+
+Make the website deployment-ready.
+
+==================================================
+46. README
+==================================================
+
+Create README with:
+
+Project overview
+Architecture
+Tech stack
+Supabase setup
+Database setup
+Environment variables
+API configuration
+Demo mode
+AI setup
+Deployment instructions
+Data-source explanation
+Known limitations
+
+==================================================
+47. FINAL TEST
+==================================================
+
+Before finishing, test the entire website.
+
+Verify:
+
+Frontend loads
+Backend loads
+Supabase connects
+Authentication works
+Database works
+Realtime works
+Map works
+Location search works
+Incidents work
+Shelters work
+Resources work
+Rescue operations work
+Alerts work
+AI Copilot works
+Fallback AI works
+External API failures are handled
+Demo mode works
+CRUD works
+Filters work
+Search works
+Responsive design works
+Production build works
+
+Fix all build errors.
+Fix all TypeScript errors.
+Fix runtime errors.
+
+Do not leave core functionality unfinished.
+
+==================================================
+48. FINAL USER EXPERIENCE
+==================================================
+
+When an authority opens SENTINEL, they should immediately see:
+
+ACTIVE INCIDENTS
+CRITICAL INCIDENTS
+ESTIMATED POPULATION AT RISK
+RESCUE TEAMS
+
+Then:
+
+LIVE MAP
+
+Then:
+
+PRIORITY ALERTS
+
+Then:
+
+RESOURCE STATUS
+
+Then:
+
+AI RESPONSE RECOMMENDATION
+
+Then:
+
+RECENT ACTIVITY
+
+The website should make the user think:
+
+"I can understand the disaster situation immediately."
+
+NOT:
+
+"This is an AI website."
+
+==================================================
+49. FINAL PRODUCT
+==================================================
+
+Product name:
+
+SENTINEL
+
+Product type:
+
+Web-based Disaster Intelligence & Emergency Response Dashboard
+
+Tagline:
+
+"See the situation. Understand the risk. Coordinate the response."
+
+Build the complete working website now.
+
+Do not stop after generating the frontend.
+
+Connect the frontend to the backend.
+
+Connect the backend to Supabase.
+
+Create the database migrations.
+
+Seed the database.
+
+Implement realtime updates.
+
+Implement the map.
+
+Implement location search.
+
+Implement external data adapters.
+
+Implement the risk engine.
+
+Implement priority calculation.
+
+Implement AI Copilot.
+
+Implement fallback behavior.
+
+Implement authentication.
+
+Implement error handling.
+
+Make the website deployable on Replit.
+
+Do not use real credentials in source code.
+
+Use environment variables for all secrets.
+
+Finish with a working, coherent, polished website.

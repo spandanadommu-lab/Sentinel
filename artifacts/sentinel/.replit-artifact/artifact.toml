@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "SENTINEL — Disaster Response"
+description = "A disaster intelligence and emergency response dashboard for authorities to monitor incidents, risk zones, shelters, resources, rescue operations, alerts, and environmental data."
+version = "1.0.0"
+id = "artifacts/sentinel"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18756
+
+[services.development]
+run = "pnpm --filter @workspace/sentinel run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/sentinel", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/sentinel/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18756"
+BASE_PATH = "/"
