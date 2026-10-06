@@ -8,4 +8,14 @@
 
 export type GetWeatherParams = {
 location?: string;
+/**
+ * @minimum -90
+ * @maximum 90
+ */
+lat?: number;
+/**
+ * @minimum -180
+ * @maximum 180
+ */
+lng?: number;
 };

@@ -66,7 +66,8 @@ export const GetDashboardSummaryResponse = zod.object({
 }),
   "latestFlood": zod.object({
   "location": zod.string(),
-  "riverLevelM": zod.number(),
+  "riverLevelM": zod.number().nullable(),
+  "riverDischargeM3s": zod.number().nullable(),
   "trend": zod.enum(['RISING', 'STEADY', 'FALLING']),
   "rainfall24hMm": zod.number(),
   "riskLevel": zod.enum(['LOW', 'MODERATE', 'HIGH', 'CRITICAL']),
@@ -556,8 +557,18 @@ export const UpdateAlertResponse = zod.object({
 /**
  * @summary Get latest weather observation and forecast
  */
+export const getWeatherQueryLatMin = -90;
+export const getWeatherQueryLatMax = 90;
+
+export const getWeatherQueryLngMin = -180;
+export const getWeatherQueryLngMax = 180;
+
+
+
 export const GetWeatherQueryParams = zod.object({
-  "location": zod.coerce.string().optional()
+  "location": zod.coerce.string().optional(),
+  "lat": zod.coerce.number().min(getWeatherQueryLatMin).max(getWeatherQueryLatMax).optional(),
+  "lng": zod.coerce.number().min(getWeatherQueryLngMin).max(getWeatherQueryLngMax).optional()
 })
 
 export const GetWeatherResponse = zod.object({
@@ -581,13 +592,24 @@ export const GetWeatherResponse = zod.object({
 /**
  * @summary Get latest flood conditions
  */
+export const getFloodQueryLatMin = -90;
+export const getFloodQueryLatMax = 90;
+
+export const getFloodQueryLngMin = -180;
+export const getFloodQueryLngMax = 180;
+
+
+
 export const GetFloodQueryParams = zod.object({
-  "location": zod.coerce.string().optional()
+  "location": zod.coerce.string().optional(),
+  "lat": zod.coerce.number().min(getFloodQueryLatMin).max(getFloodQueryLatMax).optional(),
+  "lng": zod.coerce.number().min(getFloodQueryLngMin).max(getFloodQueryLngMax).optional()
 })
 
 export const GetFloodResponse = zod.object({
   "location": zod.string(),
-  "riverLevelM": zod.number(),
+  "riverLevelM": zod.number().nullable(),
+  "riverDischargeM3s": zod.number().nullable(),
   "trend": zod.enum(['RISING', 'STEADY', 'FALLING']),
   "rainfall24hMm": zod.number(),
   "riskLevel": zod.enum(['LOW', 'MODERATE', 'HIGH', 'CRITICAL']),

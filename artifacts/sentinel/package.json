@@ -73,5 +73,11 @@
     "vite": "catalog:",
     "wouter": "^3.3.5",
     "zod": "catalog:"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.117.2",
+    "@types/leaflet": "^1.9.22",
+    "leaflet": "^1.9.4",
+    "react-leaflet": "^5.0.0"
   }
 }

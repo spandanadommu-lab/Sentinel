@@ -12,7 +12,10 @@ import type { FloodReadingTrend } from './floodReadingTrend';
 
 export interface FloodReading {
   location: string;
-  riverLevelM: number;
+  /** @nullable */
+  riverLevelM: number | null;
+  /** @nullable */
+  riverDischargeM3s: number | null;
   trend: FloodReadingTrend;
   rainfall24hMm: number;
   riskLevel: FloodReadingRiskLevel;

@@ -553,7 +553,10 @@ export const FloodReadingClassification = {
 
 export interface FloodReading {
   location: string;
-  riverLevelM: number;
+  /** @nullable */
+  riverLevelM: number | null;
+  /** @nullable */
+  riverDischargeM3s: number | null;
   trend: FloodReadingTrend;
   rainfall24hMm: number;
   riskLevel: FloodReadingRiskLevel;
@@ -761,10 +764,30 @@ priority?: string;
 
 export type GetWeatherParams = {
 location?: string;
+/**
+ * @minimum -90
+ * @maximum 90
+ */
+lat?: number;
+/**
+ * @minimum -180
+ * @maximum 180
+ */
+lng?: number;
 };
 
 export type GetFloodParams = {
 location?: string;
+/**
+ * @minimum -90
+ * @maximum 90
+ */
+lat?: number;
+/**
+ * @minimum -180
+ * @maximum 180
+ */
+lng?: number;
 };
 
 export type SearchGlobalParams = {

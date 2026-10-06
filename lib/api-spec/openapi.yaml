@@ -317,6 +317,12 @@ paths:
         - in: query
           name: location
           schema: { type: string }
+        - in: query
+          name: lat
+          schema: { type: number, minimum: -90, maximum: 90 }
+        - in: query
+          name: lng
+          schema: { type: number, minimum: -180, maximum: 180 }
       responses:
         "200":
           description: Weather data
@@ -332,6 +338,12 @@ paths:
         - in: query
           name: location
           schema: { type: string }
+        - in: query
+          name: lat
+          schema: { type: number, minimum: -90, maximum: 90 }
+        - in: query
+          name: lng
+          schema: { type: number, minimum: -180, maximum: 180 }
       responses:
         "200":
           description: Flood data
@@ -678,7 +690,8 @@ components:
       type: object
       properties:
         location: { type: string }
-        riverLevelM: { type: number }
+        riverLevelM: { type: ["number", "null"] }
+        riverDischargeM3s: { type: ["number", "null"] }
         trend: { type: string, enum: [RISING, STEADY, FALLING] }
         rainfall24hMm: { type: number }
         riskLevel: { type: string, enum: [LOW, MODERATE, HIGH, CRITICAL] }
@@ -687,7 +700,7 @@ components:
         updatedAt: { type: string, format: date-time }
         classification: { type: string, enum: [OBSERVED, FORECAST, SIMULATED] }
         message: { type: ["string", "null"] }
-      required: [location, riverLevelM, trend, rainfall24hMm, riskLevel, source, sourceStatus, updatedAt, classification]
+      required: [location, riverLevelM, riverDischargeM3s, trend, rainfall24hMm, riskLevel, source, sourceStatus, updatedAt, classification]
     RiskAssessment:
       type: object
       properties:
