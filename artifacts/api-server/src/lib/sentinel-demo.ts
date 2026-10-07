@@ -146,9 +146,12 @@ export const dataSources: DataSource[] = [
   { id: "open-meteo-flood", name: "Open-Meteo Flood / GloFAS", type: "Public flood forecast", status: "STALE", lastSuccessAt: null, lastError: null, message: "Forecast discharge is not a local river-gauge water level." },
   { id: "gdacs", name: "GDACS", type: "Public disaster feed", status: "STALE", lastSuccessAt: null, lastError: null, message: "Public global event feed; normalized events remain source-attributed." },
   { id: "usgs", name: "USGS Earthquakes", type: "Public earthquake feed", status: "STALE", lastSuccessAt: null, lastError: null, message: "Public earthquake feed; events are not assumed to be local incidents." },
-  { id: "supabase", name: "Supabase", type: "Database and authentication", status: process.env.SUPABASE_URL && process.env.SUPABASE_PUBLISHABLE_KEY ? "LIVE" : "ERROR", lastSuccessAt: null, lastError: null, message: "User-scoped requests are protected by Supabase Auth and row-level security when configured." },
-  { id: "openai", name: "OpenAI Copilot", type: "Decision support", status: process.env.OPENAI_API_KEY ? "LIVE" : "DISABLED", lastSuccessAt: null, lastError: null, message: "Server-side structured-data assistant; rule-based fallback remains available." },
-  { id: "imd", name: "India Meteorological Department", type: "Indian weather and warnings", status: process.env.IMD_API_KEY ? "LIVE" : "DISABLED", lastSuccessAt: null, lastError: null, message: process.env.IMD_API_KEY ? "Credentials configured; adapter is not yet enabled." : "Credentials are not configured. Protected endpoints are not accessed." },
+  { id: "nominatim", name: "OpenStreetMap Nominatim", type: "Public location search", status: "STALE", lastSuccessAt: null, lastError: null, message: "Address search is rate-limited; matching local demo record locations remain available offline." },
+  { id: "supabase", name: "Supabase", type: "Database and authentication", status: process.env.SUPABASE_URL && (process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_SECRET_KEY) ? "STALE" : "DISABLED", lastSuccessAt: null, lastError: null, message: "User-scoped requests use the authenticated user's access token and are protected by row-level security." },
+  { id: "openai", name: "OpenAI Copilot", type: "Decision support", status: process.env.OPENAI_API_KEY ? "STALE" : "DISABLED", lastSuccessAt: null, lastError: null, message: process.env.OPENAI_API_KEY ? "Configured; waiting for a successful Copilot request. Rule-based fallback remains available." : "No API key configured; deterministic rule-based decision support is active." },
+  { id: "imd", name: "India Meteorological Department", type: "Indian weather and warnings", status: "DISABLED", lastSuccessAt: null, lastError: null, message: "No official IMD adapter is enabled; credentials alone do not activate a data connector." },
+  { id: "nasa-firms", name: "NASA FIRMS", type: "Fire observations", status: "DISABLED", lastSuccessAt: null, lastError: null, message: "Optional connector is not configured or enabled." },
+  { id: "bhuvan", name: "ISRO Bhuvan", type: "Satellite and infrastructure data", status: "DISABLED", lastSuccessAt: null, lastError: null, message: "Optional connector is not configured or enabled." },
 ];
 
 export const demoState = {
@@ -176,5 +179,19 @@ export const addEvent = (title: string, message: string, category: string): void
   });
   demoState.events.splice(30);
 };
+
+export function updateDataSourceStatus(
+  id: string,
+  status: DataSource["status"],
+  message: string,
+  error: string | null = null,
+): void {
+  const source = demoState.dataSources.find((item) => item.id === id);
+  if (!source) return;
+  source.status = status;
+  source.message = message;
+  source.lastError = error;
+  if (status === "LIVE") source.lastSuccessAt = new Date();
+}
 
 export const classifyRisk = (score: number): AffectedZone["riskLevel"] => riskLevel(score);

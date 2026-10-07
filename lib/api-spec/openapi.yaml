@@ -719,6 +719,14 @@ components:
         question: { type: string, minLength: 1, maxLength: 1000 }
         incidentId: { type: string, format: uuid }
         zoneId: { type: string, format: uuid }
+        area:
+          type: object
+          properties:
+            lat: { type: number, minimum: -90, maximum: 90 }
+            lng: { type: number, minimum: -180, maximum: 180 }
+            radiusKm: { type: number, minimum: 1, maximum: 50 }
+            label: { type: string, maxLength: 160 }
+          required: [lat, lng, radiusKm]
       required: [question]
     CopilotResponse:
       type: object
@@ -756,7 +764,7 @@ components:
       type: object
       properties:
         id: { type: string }
-        type: { type: string, enum: [incident, shelter, rescue_team, zone] }
+        type: { type: string, enum: [incident, shelter, rescue_team, zone, location] }
         title: { type: string }
         subtitle: { type: string }
         lat: { type: number }

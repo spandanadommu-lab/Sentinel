@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { updateDataSourceStatus } from "./sentinel-demo";
 
 export type SentinelRole = "ADMIN" | "OPERATOR" | "VIEWER";
 export type SentinelContext =
@@ -6,7 +7,9 @@ export type SentinelContext =
   | { kind: "supabase"; role: SentinelRole; userId: string; accessToken: string };
 
 const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/+$/, "");
-const supabaseKey = process.env.SUPABASE_PUBLISHABLE_KEY;
+// Keep privileged configuration server-side; every data request still carries the
+// user's access token so Postgres RLS evaluates the authenticated user's role.
+const supabaseKey = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_SECRET_KEY;
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseKey);
 
@@ -52,18 +55,22 @@ export async function resolveSentinelContext(
       { headers: { apikey: supabaseKey!, authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(8_000) },
     );
     if (!profileResponse.ok) {
+      updateDataSourceStatus("supabase", "ERROR", "Could not verify the authenticated user's SENTINEL role.", `HTTP ${profileResponse.status}`);
       res.status(503).json({ error: "Could not verify your SENTINEL role. Check the Supabase schema and retry." });
       return null;
     }
     const profiles = (await profileResponse.json()) as Array<{ role?: string }>;
     const role = profiles[0]?.role;
     if (role !== "ADMIN" && role !== "OPERATOR" && role !== "VIEWER") {
+      updateDataSourceStatus("supabase", "ERROR", "The account has no valid SENTINEL role.", "Missing or invalid profile role");
       res.status(403).json({ error: "No valid SENTINEL role is assigned to this account." });
       return null;
     }
+    updateDataSourceStatus("supabase", "LIVE", "Authenticated Supabase access and SENTINEL role verified.");
     return { kind: "supabase", role, userId: user.id, accessToken: token };
   } catch (error) {
     req.log.warn({ err: error }, "Supabase identity check unavailable");
+    updateDataSourceStatus("supabase", "ERROR", "Supabase identity verification failed; live reads and writes are unavailable.", error instanceof Error ? error.message : String(error));
     res.status(503).json({ error: "Supabase is unavailable. Retry when the connection is restored." });
     return null;
   }

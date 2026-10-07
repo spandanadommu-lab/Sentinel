@@ -21,6 +21,7 @@ export * from './areaAnalysisCenter';
 export * from './areaAnalysisClassification';
 export * from './areaAnalysisRiskLevel';
 export * from './copilotInput';
+export * from './copilotInputArea';
 export * from './copilotResponse';
 export * from './copilotResponseSource';
 export * from './dashboardSummary';

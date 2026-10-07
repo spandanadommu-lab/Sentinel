@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
+import { createClient } from '@supabase/supabase-js';
 import L from 'leaflet';
 import { Circle, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { ErrorBoundary } from '@/components/error-boundary';
+import '@/components/sentinel-details.css';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AuthProvider, useSentinelAuth } from './auth';
@@ -133,25 +135,59 @@ function Shell({ auth }: { auth: any }) {
   const [incidentModal, setIncidentModal] = useState(false);
   const search = useSearchGlobal({ q: globalSearch }, { query: { enabled: globalSearch.trim().length > 0, queryKey: getSearchGlobalQueryKey({ q: globalSearch }) } });
   const summary = useGetDashboardSummary({ query: { queryKey: getGetDashboardSummaryQueryKey(), refetchInterval: 60000 } });
-  const incidents = useListIncidents(undefined, { query: { queryKey: getListIncidentsQueryKey() } });
-  const zones = useListZones({ query: { queryKey: getListZonesQueryKey() } });
-  const shelters = useListShelters({ query: { queryKey: getListSheltersQueryKey() } });
-  const resources = useListResources({ query: { queryKey: getListResourcesQueryKey() } });
-  const teams = useListRescueTeams({ query: { queryKey: getListRescueTeamsQueryKey() } });
-  const ops = useListRescueOperations({ query: { queryKey: getListRescueOperationsQueryKey() } });
-  const alerts = useListAlerts({ query: { queryKey: getListAlertsQueryKey() } });
+  const incidents = useListIncidents(undefined, { query: { queryKey: getListIncidentsQueryKey(), refetchInterval: 60000 } });
+  const zones = useListZones({ query: { queryKey: getListZonesQueryKey(), refetchInterval: 60000 } });
+  const shelters = useListShelters({ query: { queryKey: getListSheltersQueryKey(), refetchInterval: 60000 } });
+  const resources = useListResources({ query: { queryKey: getListResourcesQueryKey(), refetchInterval: 60000 } });
+  const teams = useListRescueTeams({ query: { queryKey: getListRescueTeamsQueryKey(), refetchInterval: 60000 } });
+  const ops = useListRescueOperations({ query: { queryKey: getListRescueOperationsQueryKey(), refetchInterval: 60000 } });
+  const alerts = useListAlerts({ query: { queryKey: getListAlertsQueryKey(), refetchInterval: 60000 } });
   const weather = useGetWeather(undefined, { query: { queryKey: getGetWeatherQueryKey(undefined) } });
   const flood = useGetFlood(undefined, { query: { queryKey: getGetFloodQueryKey(undefined) } });
   const sources = useListDataSources({ query: { queryKey: getListDataSourcesQueryKey() } });
-  const events = useListSystemEvents({ query: { queryKey: getListSystemEventsQueryKey() } });
+  const events = useListSystemEvents({ query: { queryKey: getListSystemEventsQueryKey(), refetchInterval: 60000 } });
   const health = useHealthCheck({ query: { queryKey: getHealthCheckQueryKey() } });
   const apiHealth = useGetApiHealth({ query: { queryKey: getGetApiHealthQueryKey() } });
   const queryClient = useQueryClient();
   const pageName = titles[path] || 'SENTINEL';
   const readOnly = auth.mode === 'live' && auth.role === 'VIEWER';
   const unread = alerts.data?.filter(a => a.status === 'ACTIVE').length || 0;
-  const refresh = () => queryClient.invalidateQueries();
+  const refresh = useCallback(() => queryClient.invalidateQueries(), [queryClient]);
   const searchResults = search.data || [];
+  const realtime = useMemo(() => {
+    const url = import.meta.env.VITE_SUPABASE_URL;
+    const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    return url && key ? createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }) : null;
+  }, []);
+
+  useEffect(() => {
+    if (auth.mode !== 'live' || !realtime) return;
+    let accessToken = '';
+    try {
+      accessToken = JSON.parse(sessionStorage.getItem('sentinel_supabase_session') || 'null')?.access_token || '';
+    } catch {
+      accessToken = '';
+    }
+    if (!accessToken) return;
+    void realtime.realtime.setAuth(accessToken);
+    const operationalTables = [
+      'incidents', 'affected_zones', 'shelters', 'shelter_resources', 'resources',
+      'rescue_teams', 'rescue_operations', 'alerts', 'weather_observations',
+      'flood_observations', 'data_sources', 'system_events',
+    ];
+    let channel = realtime.channel('sentinel-operational-updates');
+    for (const table of operationalTables) {
+      channel = channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => {
+        void refresh();
+      });
+    }
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') void refresh();
+    });
+    return () => {
+      void realtime.removeChannel(channel);
+    };
+  }, [auth.mode, realtime, refresh]);
 
   return <div className="app-shell">
     <aside className={`sidebar ${mobileNav ? 'sidebar-open' : ''}`}>
@@ -167,7 +203,7 @@ function Shell({ auth }: { auth: any }) {
         <div className="breadcrumb"><span>COMMAND CENTER</span><span className="crumb-divider">/</span><strong>{pageName}</strong></div>
         <div className="top-actions">
           <label className="global-search"><Search size={16}/><input aria-label="Search operations" placeholder="Search incidents, places…" value={globalSearch} onChange={e => setGlobalSearch(e.target.value)} data-testid="input-global-search"/><kbd>⌘ K</kbd></label>
-          {globalSearch && <div className="search-popover">{search.isLoading ? <small>Searching records…</small> : searchResults.length ? searchResults.slice(0, 6).map(r => <button key={`${r.type}-${r.id}`} onClick={() => { setPath(r.path); setGlobalSearch(''); }} data-testid={`search-result-${r.id}`}><Search size={14}/><span><b>{r.title}</b><small>{r.subtitle}</small></span><Tag>{r.type.replace('_', ' ')}</Tag></button>) : <small>No matching operational records.</small>}</div>}
+          {globalSearch && <div className="search-popover">{search.isLoading ? <small>Searching locations and operational records…</small> : search.isError ? <small>Search is unavailable. Retry after the connection recovers.</small> : searchResults.length ? searchResults.slice(0, 6).map(r => <button key={`${r.type}-${r.id}`} onClick={() => { setPath(r.path); window.dispatchEvent(new CustomEvent('sentinel:focus-location', { detail: { name: r.title, displayName: r.subtitle, lat: r.lat, lng: r.lng } })); setGlobalSearch(''); }} data-testid={`search-result-${r.id}`}><Search size={14}/><span><b>{r.title}</b><small>{r.subtitle}</small></span><Tag>{r.type.replace('_', ' ')}</Tag></button>) : <small>No matching locations or operational records.</small>}</div>}
           <span className="top-divider"/>
           <div className="connection"><span className="state-led"/><span>System status</span><b>{health.data?.status === 'ok' || apiHealth.data?.status === 'ok' ? 'Operational' : health.isError || apiHealth.isError ? 'Unavailable' : 'Checking'}</b></div>
           <button className="icon-button alert-top" onClick={() => setPath('/alerts')} aria-label={`Open alerts, ${unread} active`} data-testid="button-open-alerts"><Bell size={18}/>{unread > 0 && <i/>}</button>
@@ -207,6 +243,9 @@ function Overview({ summary, incidents, zones, shelters, resources, teams, alert
       <Metric label="Resource shortages" value={s?.criticalResourceShortages} hint="At or below minimum stock" tone="red" icon={<ClipboardList size={18}/>}/>
     </div>
     <div className="overview-main">
+      <Panel title="Operational map · Kadapa district" right={<button className="text-button" onClick={() => go('/map')} data-testid="button-overview-live-map">Open live map <ArrowRight size={14}/></button>} className="overview-map-panel">
+        <OverviewMapPreview incidents={incidents.data || []} zones={zones.data || []} shelters={shelters.data || []} teams={teams.data || []}/>
+      </Panel>
       <Panel title="Priority incidents" right={<button className="text-button" onClick={() => go('/incidents')} data-testid="button-view-incidents">All incidents <ArrowRight size={14}/></button>}>
         <State loading={incidents.isLoading} error={incidents.isError} retry={refresh} empty={!incidents.data?.length}>
           <div className="priority-list">{(s?.topPriorityIncidents?.length ? s.topPriorityIncidents : (incidents.data || []).filter((i: Incident) => i.status !== 'RESOLVED').slice(0, 5)).map((i: Incident) => <IncidentRow key={i.id} incident={i} onClick={() => go('/incidents')}/>)}</div>
@@ -248,6 +287,25 @@ function Overview({ summary, incidents, zones, shelters, resources, teams, alert
         </State>
       </Panel>
     </aside>
+  </div>;
+}
+
+function OverviewMapPreview({ incidents, zones, shelters, teams }: { incidents: Incident[]; zones: AffectedZone[]; shelters: Shelter[]; teams: any[] }) {
+  const points = [
+    ...incidents.filter((item) => item.status === 'ACTIVE' || item.status === 'MONITORING').map((item) => ({ id: item.id, title: item.title, kind: 'incident', lat: item.lat, lng: item.lng, tone: item.severity === 'CRITICAL' ? 'pin-red' : 'pin-amber', detail: `${item.priority} · risk ${item.riskScore}/100 · ${item.classification}` })),
+    ...zones.map((item) => ({ id: item.id, title: item.name, kind: 'zone', lat: item.lat, lng: item.lng, tone: 'pin-zone', detail: `${item.riskLevel} risk · ${item.classification}` })),
+    ...shelters.map((item) => ({ id: item.id, title: item.name, kind: 'shelter', lat: item.lat, lng: item.lng, tone: 'pin-green', detail: `${item.occupancy}/${item.capacity} occupied · ${item.classification}` })),
+    ...teams.map((item) => ({ id: item.id, title: item.name, kind: 'team', lat: item.lat, lng: item.lng, tone: 'pin-blue', detail: `${item.status} · ${item.classification}` })),
+  ].filter((point) => Number.isFinite(Number(point.lat)) && Number.isFinite(Number(point.lng)));
+  return <div className="overview-map-container">
+    <MapContainer center={KADAPA_CENTER} zoom={8} scrollWheelZoom={false} className="overview-map" aria-label="Operational overview map of Kadapa district">
+      <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/>
+      {zones.map((zone) => <Circle key={`zone-${zone.id}`} center={[zone.lat, zone.lng]} radius={Math.max(400, Math.min(1800, zone.estimatedPopulation / 12))} pathOptions={{ color: zone.riskLevel === 'CRITICAL' || zone.riskLevel === 'HIGH' ? '#b7433e' : '#c78618', fillOpacity: 0.12, weight: 1 }}/>)}
+      {points.map((point) => <Marker key={`${point.kind}-${point.id}`} position={[point.lat, point.lng]} icon={mapIcon(point.kind, point.tone)} title={`${point.kind}: ${point.title}`}>
+        <Popup><div className="map-popup"><b>{point.title}</b><span>{point.detail}</span><small>{point.kind.toUpperCase()} · map record, not live GPS</small></div></Popup>
+      </Marker>)}
+    </MapContainer>
+    <span className="overview-map-note">SIMULATED / DEMO · Map markers show operational records, not live GPS</span>
   </div>;
 }
 
@@ -416,10 +474,10 @@ function LegacySchematicMapPage({ incidents, zones, shelters, teams, refresh }: 
       <Panel title="Layer controls" className="map-layers"><div className="layer-toggles">{Object.entries(layers).map(([key, enabled]) => <button key={key} className={`layer-toggle ${enabled ? 'layer-on' : ''}`} onClick={() => toggle(key as keyof typeof layers)} aria-pressed={enabled} data-testid={`toggle-layer-${key}`}><Layers size={15}/>{key[0].toUpperCase()+key.slice(1)}<span className="layer-count">{key === 'incidents' ? incidents.data?.length ?? 0 : key === 'zones' ? zones.data?.length ?? 0 : key === 'shelters' ? shelters.data?.length ?? 0 : teams.data?.length ?? 0}</span></button>)}</div></Panel>
     </section><aside className="map-side"><Panel title="Area analysis"><p className="side-copy">Select a searched location to analyze nearby resources and risk. Analysis uses a calculated radius, not a forecast.</p><label className="field-label">Radius<select value={radius} onChange={e => setRadius(e.target.value)} data-testid="select-analysis-radius">{['2','5','10','20'].map(v => <option key={v} value={v}>{v} km</option>)}</select></label><button className="button button-primary full-width" onClick={() => setArea(true)} data-testid="button-analyze-area"><Crosshair size={15}/> Analyze selected area</button>{selectedLocation && <div className="selected-place"><b>{selectedLocation.name}</b><small>{selectedLocation.lat.toFixed(4)}, {selectedLocation.lng.toFixed(4)}</small></div>}{area && <div className="analysis-result"><State loading={analysis.isLoading} error={analysis.isError} retry={refresh} empty={!analysis.data}><AnalysisSummary data={analysis.data}/></State></div>}</Panel><Panel title="Operational picture"><div className="map-stat"><span>Active incidents</span><b>{incidents.data?.filter((i: Incident) => i.status === 'ACTIVE').length ?? '—'}</b></div><div className="map-stat"><span>Affected zones</span><b>{zones.data?.length ?? '—'}</b></div><div className="map-stat"><span>Shelters available</span><b>{shelters.data?.filter((s: Shelter) => s.status === 'AVAILABLE').length ?? '—'}</b></div><div className="map-stat"><span>Teams on scene</span><b>{teams.data?.filter((t: any) => t.status === 'ON_SCENE').length ?? '—'}</b></div><div className="data-note"><AlertTriangle size={14}/> Location records may be seeded or stale.</div></Panel></aside></div>;
 }
-function AnalysisSummary({ data }: any) { if (!data) return null; return <><div className="analysis-heading"><Tag tone="amber">{data.classification}</Tag><Tag tone={data.riskLevel === 'CRITICAL' || data.riskLevel === 'HIGH' ? 'red' : 'amber'}>{data.riskLevel} RISK</Tag></div><div className="analysis-score"><strong>{data.riskScore}</strong><span>CALCULATED RISK<br/>0–100</span></div><div className="analysis-stat"><span>Population exposed</span><b>{fmt(data.estimatedPopulation)} <small>ESTIMATED</small></b></div><div className="analysis-stat"><span>Incidents in area</span><b>{data.incidents?.length ?? 0}</b></div><div className="analysis-stat"><span>Available shelter capacity</span><b>{fmt(data.shelterCapacityAvailable)}</b></div><div className="analysis-stat"><span>Rescue teams</span><b>{data.rescueTeams?.length ?? 0}</b></div>{data.resourceShortages?.length > 0 && <p className="shortage-note">Shortages: {data.resourceShortages.join(', ')}</p>}</>; }
+function AnalysisSummary({ data }: any) { if (!data) return null; return <><div className="analysis-heading"><Tag tone="amber">{data.classification}</Tag><Tag tone={data.riskLevel === 'CRITICAL' || data.riskLevel === 'HIGH' ? 'red' : 'amber'}>{data.riskLevel} RISK</Tag></div><div className="analysis-score"><strong>{data.riskScore}</strong><span>CALCULATED RISK<br/>0–100</span></div><div className="analysis-stat"><span>Population exposed</span><b>{fmt(data.estimatedPopulation)} <small>ESTIMATED</small></b></div><div className="analysis-stat"><span>Incidents in area</span><b>{data.incidents?.length ?? 0}</b></div><div className="analysis-stat"><span>Available shelter capacity</span><b>{fmt(data.shelterCapacityAvailable)}</b></div><div className="analysis-stat"><span>Rescue teams</span><b>{data.rescueTeams?.length ?? 0}</b></div>{data.incidents?.length > 0 && <div className="nearby-records"><b>Nearby incidents</b>{data.incidents.slice(0, 3).map((item: Incident) => <div key={item.id}><span>{item.title}</span><small>{item.location} · {item.priority} · {item.classification}</small></div>)}</div>}{data.shelters?.length > 0 && <div className="nearby-records"><b>Nearby shelters</b>{data.shelters.slice(0, 3).map((item: Shelter) => <div key={item.id}><span>{item.name}</span><small>{item.occupancy}/{item.capacity} occupied · {item.status} · {item.classification}</small></div>)}</div>}{data.rescueTeams?.length > 0 && <div className="nearby-records"><b>Nearby rescue teams</b>{data.rescueTeams.slice(0, 3).map((item: any) => <div key={item.id}><span>{item.name}</span><small>{item.status} · {item.classification}</small></div>)}</div>}{data.resourceShortages?.length > 0 && <p className="shortage-note">Shortages: {data.resourceShortages.join(', ')}</p>}</>; }
 
 const KADAPA_CENTER: [number, number] = [14.4673, 78.8242];
-const mapIconCache = new Map<string, L.DivIcon>();
+const mapIconCache = new globalThis.Map<string, L.DivIcon>();
 
 function mapIcon(kind: string, tone: string): L.DivIcon {
   const key = `${kind}:${tone}`;
@@ -457,13 +515,43 @@ function MapClickHandler({ onSelect }: { onSelect: (lat: number, lng: number) =>
   return null;
 }
 
+function MapAreaCopilot({ area }: { area: { lat: number; lng: number; radiusKm: number; label: string } }) {
+  const [response, setResponse] = useState<any>(null);
+  const copilot = useAskCopilot();
+  const analyze = () => copilot.mutate(
+    { data: { question: 'Analyze this selected map area. Summarize nearby incidents, affected zones, shelter capacity, rescue teams, and resource shortages.', area } },
+    { onSuccess: setResponse },
+  );
+  return <div className="area-copilot">
+    <button className="small-button" onClick={analyze} disabled={copilot.isPending} data-testid="button-copilot-area">
+      {copilot.isPending ? 'Reviewing area…' : 'Ask Copilot about this area'}
+    </button>
+    {copilot.isError && <p className="area-copilot-error" role="alert">Copilot is unavailable. The deterministic area analysis above is still available.</p>}
+    {response && <div className="area-copilot-response"><div><b>Response support</b><Tag tone={response.source === 'rules' ? 'blue' : 'neutral'}>{response.source}</Tag></div><p>{response.answer}</p>{response.recommendations?.length > 0 && <ul>{response.recommendations.map((item: string) => <li key={item}>{item}</li>)}</ul>}<small>{response.disclaimer}</small></div>}
+  </div>;
+}
+
 function MapPage({ incidents, zones, shelters, teams, refresh }: any) {
   const [layers, setLayers] = useState({ incidents: true, zones: true, shelters: true, teams: true });
   const [locationQuery, setLocationQuery] = useState('');
-  const [selectedLocation, setSelectedLocation] = useState<any>(null);
+  const [selectedLocation, setSelectedLocation] = useState<any>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const lat = Number(params.get('lat'));
+    const lng = Number(params.get('lng'));
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    return {
+      name: params.get('label') || 'Selected operational location',
+      displayName: params.get('detail') || 'Selected operational record location',
+      lat,
+      lng,
+    };
+  });
   const [selectedMarker, setSelectedMarker] = useState<any>(null);
   const [selectedZoneId, setSelectedZoneId] = useState('');
-  const [area, setArea] = useState(false);
+  const [area, setArea] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return Number.isFinite(Number(params.get('lat'))) && Number.isFinite(Number(params.get('lng')));
+  });
   const [radius, setRadius] = useState('5');
   const [mapCommand, setMapCommand] = useState({ action: 'reset', nonce: 0 });
   const locQuery = useSearchLocations({ q: locationQuery }, { query: { enabled: locationQuery.trim().length >= 2, queryKey: getSearchLocationsQueryKey({ q: locationQuery }) } });
@@ -483,9 +571,23 @@ function MapPage({ incidents, zones, shelters, teams, refresh }: any) {
     setLocationQuery('');
     setArea(true);
   };
+  useEffect(() => {
+    const focusLocation = (event: Event) => {
+      const detail = (event as CustomEvent<{ name: string; displayName: string; lat: number; lng: number }>).detail;
+      if (!detail || !Number.isFinite(detail.lat) || !Number.isFinite(detail.lng)) return;
+      setSelectedLocation(detail);
+      setLocationQuery(detail.name);
+      setSelectedMarker(null);
+      setSelectedZoneId('');
+      setArea(true);
+    };
+    window.addEventListener('sentinel:focus-location', focusLocation);
+    return () => window.removeEventListener('sentinel:focus-location', focusLocation);
+  }, []);
   return <div className="map-layout"><section className="map-workspace">
     <div className="map-toolbar"><label className="map-search"><Search size={16}/><input aria-label="Search map location" placeholder="Search location or address…" value={locationQuery} onChange={e => setLocationQuery(e.target.value)} data-testid="input-map-location"/></label>
       {(locQuery.data || []).length > 0 && <div className="location-results">{(locQuery.data || []).map((location: any, i: number) => <button key={`${location.name}-${i}`} onClick={() => { setSelectedLocation(location); setLocationQuery(location.name); setArea(true); }} data-testid={`button-location-result-${i}`}><Map size={14}/><span><b>{location.name}</b><small>{location.displayName}</small></span></button>)}</div>}
+      {locQuery.isError && <div className="inline-error" role="status">Address search is unavailable. You can still select a point on the map or use a matching operational record.</div>}
       <div className="map-controls"><button aria-label="Zoom in" onClick={() => setMapCommand(v => ({ action: 'in', nonce: v.nonce + 1 }))} data-testid="button-map-zoom-in"><Plus size={16}/></button><button aria-label="Zoom out" onClick={() => setMapCommand(v => ({ action: 'out', nonce: v.nonce + 1 }))} data-testid="button-map-zoom-out"><Minus size={16}/></button><button aria-label="Reset map view" onClick={() => { setSelectedLocation(null); setSelectedMarker(null); setSelectedZoneId(''); setLocationQuery(''); setArea(false); setMapCommand(v => ({ action: 'reset', nonce: v.nonce + 1 })); }} data-testid="button-map-reset"><Crosshair size={16}/></button></div>
     </div>
     <MapContainer center={KADAPA_CENTER} zoom={8} scrollWheelZoom className="map-frame" aria-label="Interactive operational map of Kadapa district">

@@ -14,4 +14,5 @@ export const SearchResultType = {
   shelter: 'shelter',
   rescue_team: 'rescue_team',
   zone: 'zone',
+  location: 'location',
 } as const;

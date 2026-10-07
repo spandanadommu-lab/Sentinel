@@ -1,0 +1,392 @@
+CONTINUE AND FINISH THE IMPORTED SENTINEL PROJECT.
+
+This is an EXISTING imported Replit project. Do NOT rebuild it from scratch and do NOT discard working code. Inspect the existing codebase, understand what is already implemented, and then continue from its current state.
+
+You have one continuous task: make the entire project functional, fix the existing errors, complete missing functionality, test it, and leave it ready to deploy. Do not stop after identifying problems. Do not ask me to manually fix errors that you can fix yourself.
+
+PROJECT:
+SENTINEL — Disaster Intelligence & Emergency Response
+
+PURPOSE:
+A professional disaster-management web dashboard for authorities/emergency operators to understand what is happening, where it is happening, who is affected, what resources are available, and what response requires attention.
+
+CORE WORKFLOW:
+
+External disaster/weather/flood data and Supabase operational data
+        ↓
+Backend data ingestion + validation
+        ↓
+Supabase database as the persistent source of truth
+        ↓
+Deterministic risk and priority calculations
+        ↓
+REST/API layer
+        ↓
+Dashboard + Live Map + operational modules
+        ↓
+AI Copilot uses the structured dashboard data for decision support
+
+The AI is NOT the source of truth and must never invent emergency facts.
+
+The application must still work when external APIs or OpenAI are unavailable.
+
+TECHNOLOGY:
+- React + TypeScript + Vite
+- Tailwind CSS
+- Node.js + Express + TypeScript backend where applicable
+- Supabase/PostgreSQL
+- Leaflet/React Leaflet for maps
+- Recharts for charts where useful
+- Lucide icons
+- Zod for important validation
+- OpenAI server-side only for AI Copilot
+
+FIRST, inspect the imported project and understand its existing architecture, files, dependencies, routes, components, database integration and current implementation. Preserve good existing work.
+
+Then make the project fully functional.
+
+The finished website must contain:
+
+OVERVIEW
+LIVE MAP
+INCIDENTS
+SHELTERS
+RESOURCES
+RESCUE OPERATIONS
+ALERTS
+AI COPILOT
+DATA SOURCES
+SETTINGS
+
+The Overview dashboard must show:
+- Active Incidents
+- Critical Incidents
+- Estimated Population at Risk
+- Active Rescue Teams
+- large operational map
+- priority alerts
+- resource status
+- AI response recommendation
+- recent activity
+
+The Live Map must support:
+- incidents
+- affected/risk zones
+- shelters
+- rescue teams
+- optional hospitals/infrastructure
+- location search
+- map zoom/pan
+- selecting a location
+- nearby operational information
+- "Analyze this area"
+
+Global search must find:
+- locations
+- incidents
+- shelters
+- rescue teams
+- affected zones
+
+When a location is searched, move the map to it and show relevant nearby information.
+
+SUPABASE:
+
+Use Supabase as the persistent source of truth.
+
+Verify and repair the existing database integration.
+
+The application should support these conceptual entities:
+
+profiles
+incidents
+affected_zones
+shelters
+shelter_resources
+rescue_teams
+rescue_operations
+weather_observations
+flood_observations
+alerts
+system_events
+data_sources
+
+Use proper relationships, timestamps and indexes where appropriate.
+
+Respect Supabase Row Level Security.
+
+Authenticated users can read operational information.
+
+ADMIN/OPERATOR users can perform operational writes.
+
+VIEWER users are read-only.
+
+Never put the Supabase secret key in frontend code.
+
+ENVIRONMENT VARIABLES:
+
+Frontend:
+VITE_SUPABASE_URL
+VITE_SUPABASE_PUBLISHABLE_KEY
+
+Backend/server only:
+SUPABASE_URL
+SUPABASE_SECRET_KEY
+OPENAI_API_KEY
+
+Optional:
+IMD_API_KEY
+OPEN_METEO_ENABLED
+GDACS_ENABLED
+USGS_ENABLED
+NASA_FIRMS_API_KEY
+BHUVAN_API_KEY
+
+Never hardcode credentials.
+
+Never expose SUPABASE_SECRET_KEY or OPENAI_API_KEY to browser/client code.
+
+If a variable is missing, the application must fail gracefully rather than crash.
+
+DATA SOURCES:
+
+Where supported/configured, use adapters for:
+- Open-Meteo weather
+- Open-Meteo flood/GloFAS
+- GDACS disaster alerts
+- USGS earthquake feeds
+- IMD when legitimate credentials/access are available
+- optional NASA FIRMS
+- optional Bhuvan/ISRO
+
+Do not create fake API keys.
+
+External integrations must be isolated behind backend services/adapters.
+
+If an external API fails or is unavailable:
+- keep the website functional
+- show source status
+- show last successful update
+- indicate stale/unavailable data
+- use available cached/demo data where appropriate
+
+RISK ENGINE:
+
+Implement/repair a deterministic risk score from 0–100.
+
+0–30 = LOW
+31–60 = MODERATE
+61–80 = HIGH
+81–100 = CRITICAL
+
+Risk should be explainable using structured information such as:
+- hazard severity
+- population exposure
+- weather/flood conditions
+- incident status
+- infrastructure/resource availability
+
+Do not let AI invent or arbitrarily determine the numerical risk.
+
+PRIORITY:
+
+P1 = Immediate
+P2 = High
+P3 = Monitor
+
+Prioritization must be deterministic and explainable.
+
+DATA CLASSIFICATION:
+
+Clearly distinguish:
+OBSERVED
+FORECAST
+CALCULATED
+ESTIMATED
+SIMULATED
+
+Never present simulated data as live information.
+
+DEMO MODE:
+
+The website must remain fully demonstrable without external API credentials.
+
+Use a coherent Indian flood/disaster scenario for demo data.
+
+Include realistic connected data for:
+- incidents
+- affected zones
+- shelters
+- rescue teams
+- resources
+- alerts
+- weather
+- flood conditions
+
+Clearly label this information:
+DEMO / SIMULATED
+
+Do not falsely represent it as live information.
+
+AI COPILOT:
+
+Implement or repair the AI Copilot.
+
+It should be able to:
+- summarize the current situation
+- explain why an incident is high priority
+- identify urgent incidents
+- summarize affected areas
+- identify resource shortages
+- summarize shelter capacity
+- recommend response priorities
+- analyze a selected map area
+
+The AI must receive structured application data as context.
+
+It must NOT invent:
+- casualties
+- locations
+- weather values
+- resource quantities
+- incident facts
+- emergency events
+
+AI output is decision support only.
+
+If OPENAI_API_KEY is unavailable, provide useful deterministic fallback recommendations/summaries so the dashboard still works.
+
+REAL-TIME:
+
+Use Supabase Realtime where appropriate for:
+- incidents
+- alerts
+- rescue operations
+- resource changes
+
+The dashboard should update without requiring a complete page refresh.
+
+UI:
+
+This is an emergency operations website, NOT an AI-themed landing page.
+
+Do NOT use:
+- AI gradients
+- glassmorphism
+- neon
+- futuristic AI fonts
+- excessive animations
+- excessive decorative effects
+
+Use:
+- professional emergency operations center design
+- clean neutral/light background
+- strong typography
+- clear borders
+- compact cards
+- large map
+- clear hierarchy
+- semantic colors
+
+RED = critical
+AMBER = warning/high
+GREEN = safe/available
+BLUE = information
+
+The interface must be extremely clear and usable during an emergency.
+
+Make it responsive for desktop, laptop, tablet and mobile.
+
+FUNCTIONALITY:
+
+No fake buttons.
+
+No dead navigation links.
+
+No placeholder pages for core functionality.
+
+No static numbers where actual database/application data should be used.
+
+Every important operation must have:
+- loading state
+- empty state
+- success state
+- useful error state
+
+Fix:
+- TypeScript errors
+- build errors
+- runtime errors
+- broken imports
+- dependency problems
+- API errors
+- 404/500 errors
+- Supabase errors
+- authentication errors
+- CORS errors
+- map errors
+- broken forms
+- broken navigation
+- browser console errors affecting functionality
+- backend errors
+
+Do not merely suppress errors.
+
+Make the application robust when APIs are unavailable.
+
+IMPORTANT SECURITY REQUIREMENTS:
+
+Check the entire imported project for exposed secrets or credentials.
+
+Remove hardcoded secrets from source code.
+
+Keep privileged credentials server-side.
+
+Validate important API input.
+
+Do not create insecure database access merely to make a feature work.
+
+FINAL QUALITY REQUIREMENT:
+
+Do not consider the task complete merely because the page loads.
+
+Actually run the existing project, fix the problems you encounter, verify the frontend and backend, verify the production build, and test the major user flows.
+
+Verify that:
+- website starts
+- production build succeeds
+- dashboard loads
+- Supabase connection works
+- map works
+- search works
+- incidents work
+- shelters work
+- resources work
+- rescue operations work
+- alerts work
+- AI Copilot works or has a deterministic fallback
+- demo mode works
+- external API failures do not crash the site
+- responsive layout works
+- no secrets are exposed
+- no core feature is left as a fake placeholder
+
+If something already works, preserve it.
+
+If something is partially implemented, finish it.
+
+If something is broken, repair it.
+
+If something required by the product is missing, implement it.
+
+If an external credential is unavailable, implement the correct fallback/adapter instead of blocking the entire project.
+
+Do all of this in ONE CONTINUOUS BUILD/DEBUG TASK.
+
+Do not stop to ask me what to fix next.
+
+Do not give me a list of things I should fix myself.
+
+Make the best technically correct decisions based on the existing codebase and the requirements above.
+
+At the end, leave the project in a working, deployable state and briefly report what was fixed and what, if anything, still requires an external credential.

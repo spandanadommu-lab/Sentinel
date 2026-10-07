@@ -5,6 +5,7 @@
  * SENTINEL disaster intelligence and emergency response API
  * OpenAPI spec version: 0.1.0
  */
+import type { CopilotInputArea } from './copilotInputArea';
 
 export interface CopilotInput {
   /**
@@ -14,4 +15,5 @@ export interface CopilotInput {
   question: string;
   incidentId?: string;
   zoneId?: string;
+  area?: CopilotInputArea;
 }

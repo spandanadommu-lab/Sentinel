@@ -269,31 +269,55 @@ export async function searchLocations(query: string): Promise<LocationResult[]> 
   lastNominatimAt = Date.now();
   const url = new URL("https://nominatim.openstreetmap.org/search");
   url.search = new URLSearchParams({ format: "jsonv2", q: query, limit: "6", addressdetails: "1" }).toString();
-  const response = await fetch(url.toString(), {
-    headers: {
-      accept: "application/json",
-      "user-agent": "SENTINEL-disaster-response/1.0 (location search)",
-    },
-    signal: AbortSignal.timeout(8_000),
-  });
-  if (!response.ok) throw new Error(`Location search returned HTTP ${response.status}`);
-  const places = (await response.json()) as Array<{
-    display_name?: string;
-    lat?: string;
-    lon?: string;
-    name?: string;
-    address?: Record<string, string>;
-  }>;
-  const results = places
-    .map((place) => ({
-      name: place.name || place.address?.city || place.address?.town || place.address?.village || place.display_name?.split(",")[0] || "Location",
-      displayName: place.display_name ?? "",
-      lat: Number(place.lat),
-      lng: Number(place.lon),
-    }))
-    .filter((place) => place.displayName && Number.isFinite(place.lat) && Number.isFinite(place.lng));
-  saveCache(key, results);
-  return results;
+  let results: LocationResult[] = [];
+  try {
+    const response = await fetch(url.toString(), {
+      headers: {
+        accept: "application/json",
+        "user-agent": "SENTINEL-disaster-response/1.0 (location search)",
+      },
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!response.ok) throw new Error(`Location search returned HTTP ${response.status}`);
+    const places = (await response.json()) as Array<{
+      display_name?: string;
+      lat?: string;
+      lon?: string;
+      name?: string;
+      address?: Record<string, string>;
+    }>;
+    results = places
+      .map((place) => ({
+        name: place.name || place.address?.city || place.address?.town || place.address?.village || place.display_name?.split(",")[0] || "Location",
+        displayName: place.display_name ?? "",
+        lat: Number(place.lat),
+        lng: Number(place.lon),
+      }))
+      .filter((place) => place.displayName && Number.isFinite(place.lat) && Number.isFinite(place.lng));
+    setSource("nominatim", "LIVE", `Found ${results.length} public location result(s).`);
+  } catch (error) {
+    setSource("nominatim", "ERROR", "Public address search is unavailable; matching local demo locations remain searchable.", String(error));
+  }
+  const normalizedQuery = query.trim().toLowerCase();
+  const localLocations: LocationResult[] = [
+    ...demoState.incidents.map((item) => ({ name: item.location, detail: item.title, lat: item.lat, lng: item.lng })),
+    ...demoState.zones.map((item) => ({ name: item.location, detail: item.name, lat: item.lat, lng: item.lng })),
+    ...demoState.shelters.map((item) => ({ name: item.location, detail: item.name, lat: item.lat, lng: item.lng })),
+    ...demoState.teams.map((item) => ({ name: item.location, detail: item.name, lat: item.lat, lng: item.lng })),
+  ]
+    .filter((item) => `${item.name} ${item.detail}`.toLowerCase().includes(normalizedQuery))
+    .map((item) => ({
+      name: item.name,
+      displayName: `SIMULATED operational record · ${item.detail}`,
+      lat: item.lat,
+      lng: item.lng,
+    }));
+  const mergedResults = [...results, ...localLocations].slice(0, 10);
+  if (results.length === 0 && localLocations.length > 0) {
+    setSource("nominatim", "SIMULATED", "Showing matching demo record locations because public address search is unavailable.");
+  }
+  saveCache(key, mergedResults);
+  return mergedResults;
 }
 
 export function isWithinRadius(

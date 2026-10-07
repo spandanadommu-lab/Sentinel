@@ -648,12 +648,28 @@ export const GetZoneRiskResponse = zod.object({
  */
 export const askCopilotBodyQuestionMax = 1000;
 
+export const askCopilotBodyAreaLatMin = -90;
+export const askCopilotBodyAreaLatMax = 90;
+
+export const askCopilotBodyAreaLngMin = -180;
+export const askCopilotBodyAreaLngMax = 180;
+
+export const askCopilotBodyAreaRadiusKmMax = 50;
+
+export const askCopilotBodyAreaLabelMax = 160;
+
 
 
 export const AskCopilotBody = zod.object({
   "question": zod.string().min(1).max(askCopilotBodyQuestionMax),
   "incidentId": zod.string().uuid().optional(),
-  "zoneId": zod.string().uuid().optional()
+  "zoneId": zod.string().uuid().optional(),
+  "area": zod.object({
+  "lat": zod.number().min(askCopilotBodyAreaLatMin).max(askCopilotBodyAreaLatMax),
+  "lng": zod.number().min(askCopilotBodyAreaLngMin).max(askCopilotBodyAreaLngMax),
+  "radiusKm": zod.number().min(1).max(askCopilotBodyAreaRadiusKmMax),
+  "label": zod.string().max(askCopilotBodyAreaLabelMax).optional()
+}).optional()
 })
 
 export const AskCopilotResponse = zod.object({
@@ -706,7 +722,7 @@ export const SearchGlobalQueryParams = zod.object({
 
 export const SearchGlobalResponseItem = zod.object({
   "id": zod.string(),
-  "type": zod.enum(['incident', 'shelter', 'rescue_team', 'zone']),
+  "type": zod.enum(['incident', 'shelter', 'rescue_team', 'zone', 'location']),
   "title": zod.string(),
   "subtitle": zod.string(),
   "lat": zod.number(),

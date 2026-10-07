@@ -599,6 +599,26 @@ export interface RiskAssessment {
   classification: RiskAssessmentClassification;
 }
 
+export type CopilotInputArea = {
+  /**
+     * @minimum -90
+     * @maximum 90
+     */
+  lat: number;
+  /**
+     * @minimum -180
+     * @maximum 180
+     */
+  lng: number;
+  /**
+     * @minimum 1
+     * @maximum 50
+     */
+  radiusKm: number;
+  /** @maxLength 160 */
+  label?: string;
+};
+
 export interface CopilotInput {
   /**
      * @minLength 1
@@ -607,6 +627,7 @@ export interface CopilotInput {
   question: string;
   incidentId?: string;
   zoneId?: string;
+  area?: CopilotInputArea;
 }
 
 export type CopilotResponseSource = typeof CopilotResponseSource[keyof typeof CopilotResponseSource];
@@ -674,6 +695,7 @@ export const SearchResultType = {
   shelter: 'shelter',
   rescue_team: 'rescue_team',
   zone: 'zone',
+  location: 'location',
 } as const;
 
 export interface SearchResult {

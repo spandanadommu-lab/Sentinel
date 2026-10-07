@@ -65,6 +65,7 @@ import {
   classifyRisk,
   demoId,
   demoState,
+  updateDataSourceStatus,
 } from "../lib/sentinel-demo";
 import { isWithinRadius, readFlood, readPublicIncidents, readWeather, searchLocations } from "../lib/sentinel-feeds";
 import { calculateRiskScore, explainRisk, priorityForRisk } from "../lib/sentinel-risk";
@@ -239,10 +240,17 @@ function toSearchResult(
   id: string,
   title: string,
   subtitle: string,
-  type: "INCIDENT" | "SHELTER" | "TEAM" | "ALERT",
-  href: string,
+  type: "incident" | "shelter" | "rescue_team" | "zone" | "location",
+  lat: number,
+  lng: number,
 ) {
-  return { id, title, subtitle, type, href };
+  const params = new URLSearchParams({
+    lat: String(lat),
+    lng: String(lng),
+    label: title,
+    detail: subtitle,
+  });
+  return { id, title, subtitle, type, lat, lng, path: `/map?${params.toString()}` };
 }
 
 router.get("/dashboard/summary", endpoint(async (_req, res, context) => {
@@ -647,31 +655,133 @@ router.get("/risk/:zoneId", endpoint(async (req, res, context) => {
   }));
 }));
 
-function buildRuleBasedCopilot(question: string, contextText: string, classification: "SIMULATED" | "OBSERVED" | "CALCULATED") {
+type CopilotSnapshot = {
+  classification: "SIMULATED" | "OBSERVED" | "CALCULATED";
+  activeIncidents: Incident[];
+  affectedZones: AffectedZone[];
+  shelters: Shelter[];
+  resources: Resource[];
+  rescueTeams: RescueTeam[];
+  activeAlerts: Alert[];
+  weather: WeatherReading;
+  flood: FloodReading;
+  area?: { lat: number; lng: number; radiusKm: number; label?: string };
+  focusedIncident?: Incident;
+  focusedZone?: AffectedZone;
+};
+
+function buildRuleBasedCopilot(question: string, snapshot: CopilotSnapshot) {
   const lower = question.toLowerCase();
-  const advice = /shelter|capacity|evacuat/.test(lower)
-    ? "Review shelters with the least available capacity, confirm accessibility and receiving staff, then coordinate transfers with the responsible local authority."
-    : /resource|water|medical|supply|stock/.test(lower)
-      ? "Prioritize resources already below their configured threshold. Confirm current stock and delivery timing with the named logistics owner before reallocating."
-      : /team|rescue|dispatch|route/.test(lower)
-        ? "Check team availability, verify access routes by radio, and assign a team only after confirming the incident location and local command approval."
-        : /risk|priority|incident|flood/.test(lower)
-          ? "Start with the highest calculated risk and P1 incidents, then verify the latest field observations, exposed population and available shelter capacity before changing response priorities."
-          : "Use the current incident, shelter, resource and team records to coordinate a response. Verify uncertain facts with the relevant field lead before acting.";
+  const incidents = snapshot.activeIncidents;
+  const exposed = incidents.reduce((sum, item) => sum + item.estimatedPopulation, 0);
+  const urgent = [...incidents].filter((item) => item.priority === "P1" || item.severity === "CRITICAL")
+    .sort((a, b) => b.riskScore - a.riskScore);
+  const shortResources = snapshot.resources.filter((item) => item.status === "LOW" || item.status === "CRITICAL" || item.status === "OUT");
+  const availableCapacity = snapshot.shelters
+    .filter((item) => item.status !== "CLOSED")
+    .reduce((sum, item) => sum + Math.max(0, item.capacity - item.occupancy), 0);
+  const availableTeams = snapshot.rescueTeams.filter((item) => item.status === "AVAILABLE");
+  const constrainedShelters = [...snapshot.shelters]
+    .filter((item) => item.status !== "CLOSED")
+    .sort((a, b) => b.occupancyPercent - a.occupancyPercent)
+    .slice(0, 3);
+  const topIncidents = [...incidents].sort((a, b) => b.riskScore - a.riskScore).slice(0, 3);
+  const zoneSummary = snapshot.affectedZones.slice(0, 5);
+  const factualLines = [
+    `${incidents.length} active or monitoring incident(s); ${exposed.toLocaleString()} estimated people at risk (ESTIMATED).`,
+    `${urgent.length} P1 or critical incident(s): ${urgent.length ? urgent.slice(0, 3).map((item) => `${item.title} (${item.location}, ${item.priority}, risk ${item.riskScore}/100 CALCULATED; ${item.riskFactors.join(", ")})`).join("; ") : "none in the current records"}.`,
+    `${availableTeams.length} rescue team(s) listed as available; ${snapshot.rescueTeams.length - availableTeams.length} listed as deployed or otherwise unavailable.`,
+    `Shelter capacity remaining: ${availableCapacity.toLocaleString()} place(s) across open shelters. Highest occupancy: ${constrainedShelters.length ? constrainedShelters.map((item) => `${item.name} ${item.occupancy}/${item.capacity} (${item.occupancyPercent}%)`).join("; ") : "no open shelter records"}.`,
+    `Resource shortages: ${shortResources.length ? shortResources.map((item) => `${item.name} ${item.quantity} ${item.unit} (${item.status}; threshold ${item.minimumThreshold})`).join("; ") : "none at or below recorded thresholds"}.`,
+    `Affected zones: ${zoneSummary.length ? zoneSummary.map((item) => `${item.name} — ${item.location}, ${item.riskLevel} risk (${item.riskScore}/100, ${item.classification})`).join("; ") : "no affected zones recorded"}.`,
+    `Weather: ${snapshot.weather.temperatureC}°C and ${snapshot.weather.precipitationMm} mm precipitation at ${snapshot.weather.location} (${snapshot.weather.classification}, ${snapshot.weather.source}).`,
+    `Flood information: ${snapshot.flood.location}, ${snapshot.flood.trend.toLowerCase()} trend, ${snapshot.flood.riskLevel} scenario/model risk (${snapshot.flood.classification}, ${snapshot.flood.source}).`,
+  ];
+  const focused = snapshot.focusedIncident
+    ? `Selected incident: ${snapshot.focusedIncident.title} at ${snapshot.focusedIncident.location}; ${snapshot.focusedIncident.priority}, score ${snapshot.focusedIncident.riskScore}/100 CALCULATED. Risk factors: ${snapshot.focusedIncident.riskFactors.join(", ")}.`
+    : snapshot.focusedZone
+      ? `Selected zone: ${snapshot.focusedZone.name} at ${snapshot.focusedZone.location}; ${snapshot.focusedZone.riskLevel} risk, score ${snapshot.focusedZone.riskScore}/100; estimated population ${snapshot.focusedZone.estimatedPopulation.toLocaleString()}. Factors: ${snapshot.focusedZone.riskFactors.join(", ")}.`
+      : "";
+  const isShelter = /shelter|capacity|evacuat/.test(lower);
+  const isResource = /resource|water|medical|supply|stock|shortage/.test(lower);
+  const isIncident = /urgent|priority|incident|high risk|critical/.test(lower);
+  const isZone = /zone|area|affected|location/.test(lower);
+  let answer: string;
+  let recommendations: string[];
+  if (snapshot.area) {
+    const location = snapshot.area.label || `${snapshot.area.lat.toFixed(4)}, ${snapshot.area.lng.toFixed(4)}`;
+    answer = [
+      `Selected area: ${location}, within ${snapshot.area.radiusKm} km. Records below match this area; coordinates are not live GPS.`,
+      `${incidents.length} active or monitoring incident(s), with ${exposed.toLocaleString()} people estimated at risk.`,
+      `Incidents: ${incidents.length ? incidents.map((item) => `${item.title} (${item.location}, ${item.priority}, risk ${item.riskScore}/100 CALCULATED)`).join("; ") : "none in the current records"}.`,
+      `Affected zones: ${zoneSummary.length ? zoneSummary.map((item) => `${item.name} (${item.location}, ${item.riskLevel}, ${item.classification})`).join("; ") : "none in the current records"}.`,
+      `Nearby shelters: ${snapshot.shelters.length ? snapshot.shelters.map((item) => `${item.name} ${item.occupancy}/${item.capacity} occupied`).join("; ") : "none in the current records"}.`,
+      `Nearby rescue teams: ${snapshot.rescueTeams.length ? snapshot.rescueTeams.map((item) => `${item.name} (${item.status})`).join("; ") : "none in the current records"}.`,
+      `District resource shortages: ${shortResources.length ? shortResources.map((item) => `${item.name} ${item.quantity} ${item.unit} (${item.status})`).join("; ") : "none at or below recorded thresholds"}.`,
+    ].join("\n");
+    recommendations = [
+      "Confirm the selected location and operational records with the field lead before dispatch.",
+      "Review nearby shelter availability and team status with local command.",
+      "This summary uses a radius calculation; confirm boundaries and access conditions independently.",
+    ];
+  } else if (snapshot.focusedIncident || snapshot.focusedZone) {
+    answer = [focused, ...factualLines.slice(1, 6)].filter(Boolean).join("\n");
+    recommendations = [
+      "Confirm the latest field report and exact access conditions with the responsible local team.",
+      "Recheck nearby shelter capacity and current resource availability before coordinating a transfer.",
+      "Confirm any change in priority with the incident commander; the risk score is calculated from structured records.",
+    ];
+  } else if (isShelter) {
+    answer = factualLines[3]!;
+    recommendations = [
+      "Confirm the occupancy count, receiving staff, accessibility and current supplies with each shelter lead.",
+      "Coordinate any transfer through the responsible local authority.",
+    ];
+  } else if (isResource) {
+    answer = factualLines[4]!;
+    recommendations = [
+      "Verify stock counts and delivery timing with the named logistics owner before reallocating supplies.",
+      "Prioritize resources below their recorded minimum threshold.",
+    ];
+  } else if (isIncident) {
+    answer = `${urgent.length ? urgent.slice(0, 5).map((item) => `${item.title} — ${item.location}; ${item.priority}; risk ${item.riskScore}/100 CALCULATED. Factors: ${item.riskFactors.join(", ")}.`).join("\n") : "No P1 or critical incidents are listed in the current operational records."}`;
+    recommendations = [
+      "Verify the latest field observations, exposed population and access status before changing incident priority.",
+      "Check whether a suitable rescue team is available and confirm dispatch through incident command.",
+    ];
+  } else if (isZone) {
+    answer = zoneSummary.length
+      ? zoneSummary.map((item) => `${item.name} — ${item.location}; ${item.riskLevel} risk (${item.riskScore}/100 CALCULATED); ${item.estimatedPopulation.toLocaleString()} people estimated; factors: ${item.riskFactors.join(", ")}.`).join("\n")
+      : "No affected zones are present in the current operational records.";
+    recommendations = [
+      "Confirm zone boundaries and exposed-population estimates with current field reports.",
+      "Review the nearest shelter and available team records before coordinating action.",
+    ];
+  } else {
+    answer = factualLines.join("\n");
+    recommendations = [
+      "Verify high-priority conditions and access routes with the responsible field lead.",
+      "Review shelter capacity and resource shortages before coordinating transfers or dispatch.",
+      "Confirm source freshness and follow the local incident-command process.",
+    ];
+  }
+  const prefix = snapshot.classification === "SIMULATED"
+    ? "SIMULATED / DEMO scenario — not live emergency information.\n"
+    : "";
   return {
-    answer: `${advice}\n\nThis response is rule-based decision support, not an official instruction. Confirm actions through the incident commander and local emergency procedures.`,
-    sources: [
-      { title: "SENTINEL operational records", detail: contextText.slice(0, 500), classification },
-      { title: "Decision-support safeguards", detail: "No new measurements or unverified events were inferred.", classification: "CALCULATED" as const },
-    ],
-    classification,
+    answer: `${prefix}${answer}`,
+    recommendations,
+    source: "rules" as const,
+    generatedAt: new Date(),
+    disclaimer: "Decision support only. Confirm facts and actions with official sources and the responsible incident commander.",
   };
 }
 
 router.post("/ai/copilot", endpoint(async (req, res, context) => {
   const body = AskCopilotBody.parse(req.body);
-  const [incidentsRows, shelterRows, resourceRows, teamRows, alertRows, weather, flood] = await Promise.all([
+  const [incidentsRows, zonesRows, shelterRows, resourceRows, teamRows, alertRows, weather, flood] = await Promise.all([
     getIncidents(context),
+    getZones(context),
     getShelters(context),
     getResources(context),
     getTeams(context),
@@ -680,19 +790,40 @@ router.post("/ai/copilot", endpoint(async (req, res, context) => {
     readFlood(),
   ]);
   const active = incidentsRows.filter(activeIncident);
-  const snapshot = {
+  const areaCenter = body.area ? { lat: body.area.lat, lng: body.area.lng } : null;
+  const areaIncidents = areaCenter
+    ? active.filter((item) => isWithinRadius({ lat: item.lat, lng: item.lng }, areaCenter, body.area!.radiusKm))
+    : active;
+  const areaZones = areaCenter
+    ? zonesRows.filter((item) => isWithinRadius({ lat: item.lat, lng: item.lng }, areaCenter, body.area!.radiusKm))
+    : zonesRows;
+  const areaShelters = areaCenter
+    ? shelterRows.filter((item) => isWithinRadius({ lat: item.lat, lng: item.lng }, areaCenter, body.area!.radiusKm))
+    : shelterRows;
+  const areaTeams = areaCenter
+    ? teamRows.filter((item) => isWithinRadius({ lat: item.lat, lng: item.lng }, areaCenter, body.area!.radiusKm))
+    : teamRows;
+  const areaIncidentIds = new Set(areaIncidents.map((item) => item.id));
+  const areaZoneIds = new Set(areaZones.map((item) => item.id));
+  const snapshot: CopilotSnapshot = {
     classification: context.kind === "demo" ? "SIMULATED" : "OBSERVED",
-    activeIncidents: active.map(({ title, type, severity, status, priority, location, riskScore, estimatedPopulation, riskFactors }) =>
-      ({ title, type, severity, status, priority, location, riskScore, estimatedPopulation, riskFactors })),
-    shelters: shelterRows.map(({ name, location, capacity, occupancy, status }) => ({ name, location, capacity, occupancy, status })),
-    resources: resourceRows.map(({ name, quantity, unit, minimumThreshold, status }) => ({ name, quantity, unit, minimumThreshold, status })),
-    rescueTeams: teamRows.map(({ name, status, location, incidentTitle }) => ({ name, status, location, incidentTitle })),
-    activeAlerts: alertRows.filter((item) => item.status === "ACTIVE").map(({ title, severity, message }) => ({ title, severity, message })),
-    weather: { location: weather.location, precipitationMm: weather.precipitationMm, temperatureC: weather.temperatureC, source: weather.source, classification: weather.classification },
-    flood: { location: flood.location, riverLevelM: flood.riverLevelM, riverDischargeM3s: flood.riverDischargeM3s, trend: flood.trend, riskLevel: flood.riskLevel, source: flood.source, classification: flood.classification },
+    activeIncidents: areaIncidents,
+    affectedZones: areaZones,
+    shelters: areaShelters,
+    resources: resourceRows,
+    rescueTeams: areaTeams,
+    activeAlerts: alertRows.filter((item) =>
+      item.status === "ACTIVE" &&
+      ((item.incidentId && areaIncidentIds.has(item.incidentId)) || (item.zoneId && areaZoneIds.has(item.zoneId))),
+    ),
+    weather,
+    flood,
+    ...(body.area ? { area: body.area } : {}),
+    focusedIncident: body.incidentId ? incidentsRows.find((item) => item.id === body.incidentId) : undefined,
+    focusedZone: body.zoneId ? zonesRows.find((item) => item.id === body.zoneId) : undefined,
   };
-  const fallback = buildRuleBasedCopilot(body.question, JSON.stringify(snapshot), context.kind === "demo" ? "SIMULATED" : "CALCULATED");
-  let result = fallback;
+  const fallback = buildRuleBasedCopilot(body.question, snapshot);
+  let result: typeof fallback | (Omit<typeof fallback, "source"> & { source: "openai" }) = fallback;
   if (process.env.OPENAI_API_KEY) {
     try {
       const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -707,11 +838,15 @@ router.post("/ai/copilot", endpoint(async (req, res, context) => {
           messages: [
             {
               role: "system",
-              content: "You are SENTINEL, a cautious disaster-response decision-support assistant. Use only the supplied structured snapshot. Never claim current facts not present in it; distinguish SIMULATED, OBSERVED, FORECAST and CALCULATED data. Do not create measurements, events, casualty counts, routes, official warnings, or authority decisions. State uncertainty and advise confirmation by the responsible incident commander. Give concise, actionable coordination suggestions, not orders. Return valid JSON with keys answer and sources (an array of objects with title and detail).",
+              content: "You are SENTINEL. You may only select safe generic recommendations already supplied in the user message. Do not write free text or add facts. Return valid JSON with one key recommendationIndices containing zero-based integer indices of the supplied recommendations. Select at most 3.",
             },
             {
               role: "user",
-              content: JSON.stringify({ question: body.question, operationalSnapshot: snapshot }),
+              content: JSON.stringify({
+                question: body.question,
+                operationalSnapshot: snapshot,
+                safeRecommendations: fallback.recommendations,
+              }),
             },
           ],
           response_format: { type: "json_object" },
@@ -724,19 +859,22 @@ router.post("/ai/copilot", endpoint(async (req, res, context) => {
       };
       const content = completion.choices?.[0]?.message?.content;
       if (!content) throw new Error("OpenAI returned no content.");
-      const parsed = JSON.parse(content) as { answer?: string; sources?: Array<{ title?: string; detail?: string }> };
-      if (!parsed.answer?.trim()) throw new Error("OpenAI response did not include an answer.");
+      const parsed = JSON.parse(content) as { recommendationIndices?: unknown };
+      if (!Array.isArray(parsed.recommendationIndices)) throw new Error("OpenAI returned no recommendation selection.");
+      const indices = parsed.recommendationIndices
+        .filter((index): index is number => Number.isInteger(index) && index >= 0 && index < fallback.recommendations.length)
+        .slice(0, 3);
       result = {
-        answer: parsed.answer.slice(0, 5_000),
-        sources: (parsed.sources ?? []).slice(0, 8).map((source) => ({
-          title: source.title?.slice(0, 120) || "Operational snapshot",
-          detail: source.detail?.slice(0, 500) || "Structured SENTINEL records provided to the assistant.",
-          classification: context.kind === "demo" ? "SIMULATED" as const : "CALCULATED" as const,
-        })),
-        classification: context.kind === "demo" ? "SIMULATED" : "CALCULATED",
+        ...fallback,
+        recommendations: indices.length
+          ? indices.map((index) => fallback.recommendations[index]!)
+          : fallback.recommendations,
+        source: "openai",
       };
+      updateDataSourceStatus("openai", "LIVE", "OpenAI was reachable; structured facts and safe recommendations remain constrained to SENTINEL records.");
     } catch (error) {
       req.log.warn({ err: error }, "OpenAI Copilot unavailable; using rule-based response");
+      updateDataSourceStatus("openai", "ERROR", "OpenAI is unavailable; deterministic rule-based decision support is being used.", error instanceof Error ? error.message : String(error));
     }
   }
   res.json(AskCopilotResponse.parse(result));
@@ -753,21 +891,43 @@ router.get("/system-events", endpoint(async (_req, res, context) => {
 router.get("/search", endpoint(async (req, res, context) => {
   const { q } = SearchGlobalQueryParams.parse(req.query);
   const query = q.toLowerCase();
-  const [incidentsRows, sheltersRows, teamsRows, alertsRows] = await Promise.all([
+  const [incidentsRows, sheltersRows, teamsRows, alertsRows, zonesRows] = await Promise.all([
     getIncidents(context),
     getShelters(context),
     getTeams(context),
     getAlerts(context),
+    getZones(context),
   ]);
+  const locationRows = q.length >= 2
+    ? await searchLocations(q).catch((error) => {
+        req.log.warn({ err: error }, "Location search unavailable; returning matching operational records");
+        return [];
+      })
+    : [];
   const results = [
     ...incidentsRows.filter((item) => `${item.title} ${item.location} ${item.description}`.toLowerCase().includes(query))
-      .map((item) => toSearchResult(item.id, item.title, `${item.location} · ${item.priority}`, "INCIDENT", `/incidents/${item.id}`)),
+      .map((item) => toSearchResult(item.id, item.title, `${item.location} · ${item.priority}`, "incident", item.lat, item.lng)),
     ...sheltersRows.filter((item) => `${item.name} ${item.location}`.toLowerCase().includes(query))
-      .map((item) => toSearchResult(item.id, item.name, `${item.location} · ${item.occupancyPercent}% occupied`, "SHELTER", "/shelters")),
+      .map((item) => toSearchResult(item.id, item.name, `${item.location} · ${item.occupancyPercent}% occupied`, "shelter", item.lat, item.lng)),
     ...teamsRows.filter((item) => `${item.name} ${item.type} ${item.location}`.toLowerCase().includes(query))
-      .map((item) => toSearchResult(item.id, item.name, `${item.type} · ${item.status}`, "TEAM", "/rescue")),
+      .map((item) => toSearchResult(item.id, item.name, `${item.type} · ${item.status}`, "rescue_team", item.lat, item.lng)),
+    ...zonesRows.filter((item) => `${item.name} ${item.location} ${item.riskLevel}`.toLowerCase().includes(query))
+      .map((item) => toSearchResult(item.id, item.name, `${item.location} · ${item.riskLevel} risk`, "zone", item.lat, item.lng)),
+    ...locationRows.map((item, index) => toSearchResult(
+      `location-${index}-${item.lat.toFixed(4)}-${item.lng.toFixed(4)}`,
+      item.name,
+      item.displayName,
+      "location",
+      item.lat,
+      item.lng,
+    )),
     ...alertsRows.filter((item) => `${item.title} ${item.message}`.toLowerCase().includes(query))
-      .map((item) => toSearchResult(item.id, item.title, `${item.severity} · ${item.status}`, "ALERT", "/alerts")),
+      .map((item) => {
+        const incident = incidentsRows.find((row) => row.id === item.incidentId);
+        const zone = zonesRows.find((row) => row.id === item.zoneId);
+        const point = incident ?? zone ?? { lat: 14.4673, lng: 78.8242 };
+        return toSearchResult(item.id, item.title, `${item.severity} · ${item.status}`, "location", point.lat, point.lng);
+      }),
   ].slice(0, 30);
   res.json(SearchGlobalResponse.parse(results));
 }));
