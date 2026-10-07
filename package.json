@@ -16,8 +16,8 @@
     "typescript": "~5.9.3"
   },
   "pnpm": {
-    "approvedBuilds": {
-      "esbuild": "0.28.2"
-    }
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }
