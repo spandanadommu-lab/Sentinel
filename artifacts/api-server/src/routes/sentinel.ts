@@ -123,6 +123,20 @@ async function getIncidents(context: SentinelContext): Promise<Incident[]> {
   return readSupabaseTable<Incident>(context, "incidents", "select=*&order=updated_at.desc");
 }
 
+async function findIncidentById(context: SentinelContext, id: string): Promise<Incident | null> {
+  const stored = await getIncidents(context);
+  const found = stored.find((item) => item.id === id);
+  if (found) return found;
+  const publicRows = await readPublicIncidents();
+  const pub = publicRows.find((item) => item.id === id);
+  if (!pub) return null;
+  if (context.kind === "demo") {
+    demoState.incidents.unshift(pub);
+    return pub;
+  }
+  return insertSupabaseRow<Incident>(context, "incidents", pub);
+}
+
 async function getZones(context: SentinelContext): Promise<AffectedZone[]> {
   if (context.kind === "demo") return demoState.zones;
   return readSupabaseTable<AffectedZone>(context, "affected_zones", "select=*&order=risk_score.desc");
@@ -296,8 +310,11 @@ router.get("/incidents", endpoint(async (req, res, context) => {
 
 router.get("/incidents/:id", endpoint(async (req, res, context) => {
   const { id } = GetIncidentParams.parse({ id: req.params.id });
-  const [incidentRows, zones, alerts] = await Promise.all([getIncidents(context), getZones(context), getAlerts(context)]);
-  const incident = incidentRows.find((item) => item.id === id);
+  const [incident, zones, alerts] = await Promise.all([
+    findIncidentById(context, id),
+    getZones(context),
+    getAlerts(context),
+  ]);
   if (!incident) {
     res.status(404).json({ error: "Incident not found." });
     return;
@@ -313,10 +330,11 @@ router.get("/incidents/:id", endpoint(async (req, res, context) => {
 router.post("/incidents", endpoint(async (req, res, context) => {
   if (!requireOperationalRole(context, res)) return;
   const body = CreateIncidentBody.parse(req.body);
-  const [shelterRows, resourceRows, weather] = await Promise.all([
+  const [shelterRows, resourceRows, weather, teams] = await Promise.all([
     getShelters(context),
     getResources(context),
     readWeather(body.lat, body.lng, body.location),
+    getTeams(context),
   ]);
   const shortages = resourceRows.filter((item) => item.status === "LOW" || item.status === "CRITICAL").length;
   const riskScore = calculateRiskScore({
@@ -347,6 +365,51 @@ router.post("/incidents", endpoint(async (req, res, context) => {
   const saved = context.kind === "demo"
     ? (demoState.incidents.unshift({ ...incident, classification: "SIMULATED" }), demoState.incidents[0]!)
     : await insertSupabaseRow<Incident>(context, "incidents", incident);
+
+  if (body.assignedTeamId) {
+    const team = teams.find((t) => t.id === body.assignedTeamId);
+    if (team) {
+      if (context.kind === "demo") {
+        Object.assign(team, {
+          incidentId: saved.id,
+          incidentTitle: saved.title,
+          status: "DEPLOYED" as const,
+          priority: saved.priority,
+          updatedAt: new Date(),
+        });
+        demoState.operations.unshift({
+          id: crypto.randomUUID(),
+          teamId: team.id,
+          teamName: team.name,
+          incidentId: saved.id,
+          incidentTitle: saved.title,
+          status: "DEPLOYED",
+          priority: saved.priority,
+          notes: "Assigned at incident creation.",
+          startedAt: new Date(),
+          completedAt: null,
+        });
+      } else {
+        await updateSupabaseRow(context, "rescue_teams", team.id, {
+          incidentId: saved.id,
+          status: "DEPLOYED",
+          priority: saved.priority,
+          updatedAt: new Date(),
+        });
+        await insertSupabaseRow<RescueOperation>(context, "rescue_operations", {
+          id: crypto.randomUUID(),
+          teamId: team.id,
+          incidentId: saved.id,
+          status: "DEPLOYED",
+          priority: saved.priority,
+          notes: "Assigned at incident creation.",
+          startedAt: new Date(),
+          completedAt: null,
+        });
+      }
+    }
+  }
+
   await recordEvent(req, context, "Incident recorded", `${saved.title} received an initial ${saved.priority} priority.`, "Incident");
   res.status(201).json(CreateIncidentResponse.parse(saved));
 }));
@@ -355,15 +418,16 @@ router.patch("/incidents/:id", endpoint(async (req, res, context) => {
   if (!requireOperationalRole(context, res)) return;
   const { id } = UpdateIncidentParams.parse({ id: req.params.id });
   const body = UpdateIncidentBody.parse(req.body);
-  const current = (await getIncidents(context)).find((item) => item.id === id);
+  const current = await findIncidentById(context, id);
   if (!current) {
     res.status(404).json({ error: "Incident not found." });
     return;
   }
-  const [shelterRows, resourceRows, weather] = await Promise.all([
+  const [shelterRows, resourceRows, weather, teams] = await Promise.all([
     getShelters(context),
     getResources(context),
     readWeather(current.lat, current.lng, current.location),
+    getTeams(context),
   ]);
   const merged = { ...current, ...body };
   const score = calculateRiskScore({
@@ -395,6 +459,74 @@ router.patch("/incidents/:id", endpoint(async (req, res, context) => {
     res.status(404).json({ error: "Incident not found." });
     return;
   }
+
+  // Synchronize team dispatch posture if assignedTeamId changed
+  if (body.assignedTeamId !== undefined && body.assignedTeamId !== current.assignedTeamId) {
+    const oldTeamId = current.assignedTeamId;
+    const newTeamId = body.assignedTeamId;
+    if (newTeamId) {
+      const newTeam = teams.find((t) => t.id === newTeamId);
+      if (newTeam) {
+        if (context.kind === "demo") {
+          Object.assign(newTeam, {
+            incidentId: updated.id,
+            incidentTitle: updated.title,
+            status: "DEPLOYED" as const,
+            priority: updated.priority,
+            updatedAt: new Date(),
+          });
+          const existingOp = demoState.operations.find((op) => op.teamId === newTeam.id && op.status !== "COMPLETED");
+          if (existingOp) {
+            Object.assign(existingOp, { incidentId: updated.id, incidentTitle: updated.title, status: "DEPLOYED" as const, priority: updated.priority });
+          } else {
+            demoState.operations.unshift({
+              id: crypto.randomUUID(),
+              teamId: newTeam.id,
+              teamName: newTeam.name,
+              incidentId: updated.id,
+              incidentTitle: updated.title,
+              status: "DEPLOYED",
+              priority: updated.priority,
+              notes: "Assigned from incident desk.",
+              startedAt: new Date(),
+              completedAt: null,
+            });
+          }
+        } else {
+          await updateSupabaseRow(context, "rescue_teams", newTeam.id, {
+            incidentId: updated.id,
+            status: "DEPLOYED",
+            priority: updated.priority,
+            updatedAt: new Date(),
+          });
+        }
+      }
+    }
+    if (oldTeamId && oldTeamId !== newTeamId) {
+      const oldTeam = teams.find((t) => t.id === oldTeamId);
+      if (oldTeam) {
+        if (context.kind === "demo") {
+          Object.assign(oldTeam, {
+            incidentId: null,
+            incidentTitle: null,
+            status: "AVAILABLE" as const,
+            updatedAt: new Date(),
+          });
+          const existingOp = demoState.operations.find((op) => op.teamId === oldTeam.id && op.status !== "COMPLETED");
+          if (existingOp) {
+            Object.assign(existingOp, { status: "COMPLETED" as const, completedAt: new Date() });
+          }
+        } else {
+          await updateSupabaseRow(context, "rescue_teams", oldTeam.id, {
+            incidentId: null,
+            status: "AVAILABLE",
+            updatedAt: new Date(),
+          });
+        }
+      }
+    }
+  }
+
   await recordEvent(req, context, "Incident updated", `${updated.title} now has ${updated.priority} priority.`, "Incident");
   res.json(UpdateIncidentResponse.parse(updated));
 }));
@@ -499,15 +631,18 @@ router.get("/rescue-operations", endpoint(async (_req, res, context) => {
 router.post("/rescue-operations", endpoint(async (req, res, context) => {
   if (!requireOperationalRole(context, res)) return;
   const body = CreateRescueOperationBody.parse(req.body);
-  const [teams, incidents] = await Promise.all([getTeams(context), getIncidents(context)]);
+  const [teams, incident] = await Promise.all([
+    getTeams(context),
+    findIncidentById(context, body.incidentId),
+  ]);
   const team = teams.find((item) => item.id === body.teamId);
-  const incident = incidents.find((item) => item.id === body.incidentId);
   if (!team || !incident) {
+    req.log.warn({ teamId: body.teamId, incidentId: body.incidentId, foundTeam: !!team, foundIncident: !!incident }, "Team or incident not found");
     res.status(404).json({ error: !team ? "Rescue team not found." : "Incident not found." });
     return;
   }
   if (team.status !== "AVAILABLE" && team.incidentId !== incident.id) {
-    res.status(409).json({ error: "The selected team is not available for a new operation." });
+    res.status(409).json({ error: `Team ${team.name} is currently ${team.status} and cannot take a new assignment.` });
     return;
   }
   const operation: RescueOperation = {
@@ -566,8 +701,13 @@ router.patch("/rescue-operations/:id", endpoint(async (req, res, context) => {
     if (context.kind === "demo") {
       const team = demoState.teams.find((item) => item.id === operation.teamId);
       if (team) Object.assign(team, { status: "AVAILABLE", incidentId: null, incidentTitle: null, updatedAt: new Date() });
+      const incident = demoState.incidents.find((item) => item.id === operation.incidentId);
+      if (incident && incident.assignedTeamId === operation.teamId) {
+        Object.assign(incident, { assignedTeamId: null, updatedAt: new Date() });
+      }
     } else {
       await updateSupabaseRow(context, "rescue_teams", operation.teamId, { status: "AVAILABLE", incidentId: null, updatedAt: new Date() });
+      await updateSupabaseRow(context, "incidents", operation.incidentId, { assignedTeamId: null, updatedAt: new Date() });
     }
   }
   const [teams, incidents] = await Promise.all([getTeams(context), getIncidents(context)]);

@@ -171,6 +171,9 @@ function xmlTag(xml: string, name: string): string {
 }
 
 export async function readPublicIncidents(): Promise<Incident[]> {
+  const cacheKey = "public:incidents:feed";
+  const cached = cachedValue<Incident[]>(cacheKey);
+  if (cached) return cached;
   const result: Incident[] = [];
   try {
     const response = await fetch("https://www.gdacs.org/xml/rss.xml", {
@@ -256,6 +259,9 @@ export async function readPublicIncidents(): Promise<Incident[]> {
     setSource("usgs", "LIVE", `Fetched ${geojson.features?.length ?? 0} public USGS earthquake event(s).`);
   } catch (error) {
     setSource("usgs", "ERROR", "USGS feed unavailable. No current earthquakes were inferred.", String(error));
+  }
+  if (result.length > 0) {
+    saveCache(cacheKey, result);
   }
   return result;
 }
