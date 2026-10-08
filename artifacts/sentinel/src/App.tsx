@@ -607,7 +607,7 @@ function MapPage({ incidents, zones, shelters, teams, refresh }: any) {
       <div className="map-controls"><button aria-label="Zoom in" onClick={() => setMapCommand(v => ({ action: 'in', nonce: v.nonce + 1 }))} data-testid="button-map-zoom-in"><Plus size={16}/></button><button aria-label="Zoom out" onClick={() => setMapCommand(v => ({ action: 'out', nonce: v.nonce + 1 }))} data-testid="button-map-zoom-out"><Minus size={16}/></button><button aria-label="Reset map view" onClick={() => { setSelectedLocation(null); setSelectedMarker(null); setSelectedZoneId(''); setLocationQuery(''); setArea(false); setMapCommand(v => ({ action: 'reset', nonce: v.nonce + 1 })); }} data-testid="button-map-reset"><Crosshair size={16}/></button></div>
     </div>
     <MapContainer center={KADAPA_CENTER} zoom={8} scrollWheelZoom className="map-frame" aria-label="Interactive operational map of Kadapa district">
-      <TileLayer attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" maxZoom={19}/>
+      <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19}/>
       <MapCamera command={mapCommand} location={selectedLocation}/>
       <MapClickHandler onSelect={selectCoordinates}/>
       {area && <Circle center={selectedLocation ? [selectedLocation.lat, selectedLocation.lng] : KADAPA_CENTER} radius={(Number(radius) || 5) * 1000} pathOptions={{ color: '#b98521', fillColor: '#d9b762', fillOpacity: 0.12, weight: 2, dashArray: '5 6' }}/>}
